@@ -938,7 +938,7 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
     return /^(0?[1-9]|1[0-3]|3[5-9]|4[0-8]|0?[1-9]\\/\\d{2}|[SMLXL]{1,3})$/.test(clean);
   }
 
-  // Scrapes ONLY the active rows in the current bill table and reads the EXACT Qty column
+  // Scrapes Logic ERP Stock Reports, Dashboard Tables, Size-Matrix Grids, and Sale Bill tables
   function scrapeCurrentBillRows() {
     const itemMap = new Map();
 
@@ -947,34 +947,53 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
     let articleColIdx = -1;
     let sizeColIdx = -1;
     let mrpColIdx = -1;
+    // Support Logic ERP Size-Matrix / Cross-Tab Stock Reports (e.g. Columns: Article | 6 | 7 | 8 | 9 | 10)
+    const sizeMatrixCols = [];
 
-    const headerRows = document.querySelectorAll('thead tr, tr.header, .ag-header-row, [role="rowheader"]');
+    const headerRows = document.querySelectorAll(
+      'thead tr, tr.header, .ag-header-row, .dx-header-row, .k-grid-header tr, [role="rowheader"]'
+    );
     for (const hRow of headerRows) {
-      const ths = Array.from(hRow.querySelectorAll('th, td, .ag-header-cell'));
+      const ths = Array.from(
+        hRow.querySelectorAll('th, td, .ag-header-cell, .dx-datagrid-text-content, [role="columnheader"]')
+      );
       if (ths.length >= 2) {
         ths.forEach((th, idx) => {
           const t = cleanVal(th.textContent).toUpperCase();
-          if (/\\b(QTY|QUANTITY|PCS|PIECES|BILL QTY|BILLED QTY|TOTAL QTY|ISSUE QTY|CLOSING|STOCK|BAL QTY|BALANCE)\\b/i.test(t)) {
+          if (!t) return;
+          if (/\\b(QTY|QUANTITY|PCS|PIECES|BILL QTY|BILLED QTY|TOTAL QTY|ISSUE QTY|CLOSING|CLOSING STOCK|NET STOCK|STOCK|BAL QTY|BALANCE|AVAIL|AVAILABLE)\\b/i.test(t)) {
             qtyColIdx = idx;
-          } else if (/\\b(BARCODE|BAR CODE|UPC|EAN|PRODUCT CODE|LOT CODE)\\b/i.test(t)) {
+          } else if (/\\b(BARCODE|BAR CODE|UPC|EAN|PRODUCT CODE|LOT CODE|LOT NO|SKU)\\b/i.test(t)) {
             barcodeColIdx = idx;
-          } else if (/\\b(ITEM|ARTICLE|ART NO|STYLE|DESCRIPTION|ITEM NAME|DESIGN)\\b/i.test(t)) {
-            articleColIdx = idx;
-          } else if (/\\b(SIZE|SZ|PARA1|SHOE SIZE)\\b/i.test(t)) {
+          } else if (/\\b(ITEM|ARTICLE|ART NO|ART CODE|STYLE|DESCRIPTION|ITEM NAME|PRODUCT NAME|DESIGN|SHADE)\\b/i.test(t)) {
+            if (articleColIdx === -1) articleColIdx = idx;
+          } else if (/\\b(SIZE|SZ|PARA1|SHOE SIZE|DIM1)\\b/i.test(t)) {
             sizeColIdx = idx;
-          } else if (/\\b(MRP|RATE|PRICE)\\b/i.test(t)) {
+          } else if (/\\b(MRP|RATE|PRICE|SALE RATE)\\b/i.test(t)) {
             mrpColIdx = idx;
+          } else if (isLikelySize(t)) {
+            sizeMatrixCols.push({ colIdx: idx, sizeLabel: t });
           }
         });
-        if (qtyColIdx !== -1 || barcodeColIdx !== -1) break;
+        if (qtyColIdx !== -1 || barcodeColIdx !== -1 || articleColIdx !== -1 || sizeMatrixCols.length >= 2) break;
       }
     }
 
-    const rows = document.querySelectorAll('tr, [role="row"], .ag-row, .ui-jqgrid-btable tr');
+    const rows = document.querySelectorAll(
+      'tr, [role="row"], .ag-row, .dx-data-row, .k-master-row, .ui-jqgrid-btable tr'
+    );
     rows.forEach((row) => {
-      if (row.closest('thead') || row.querySelector('th') || row.classList.contains('header')) return;
+      if (
+        row.closest('thead') ||
+        row.querySelector('th') ||
+        row.classList.contains('header') ||
+        row.classList.contains('dx-header-row') ||
+        row.classList.contains('ag-header-row')
+      ) {
+        return;
+      }
 
-      const cells = Array.from(row.querySelectorAll('td, [role="gridcell"]'));
+      const cells = Array.from(row.querySelectorAll('td, [role="gridcell"], .ag-cell'));
       if (cells.length < 2) return;
 
       let rowBarcode = '';
@@ -982,25 +1001,6 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
       let rowSize = '';
       let rowQty = 0;
       let rowMrp = 0;
-
-      if (qtyColIdx !== -1 && cells[qtyColIdx]) {
-        const qInp = cells[qtyColIdx].querySelector('input');
-        const qText = cleanVal(qInp ? qInp.value : cells[qtyColIdx].textContent);
-        const parsed = parseInt(qText, 10);
-        if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
-          rowQty = parsed;
-        }
-      }
-
-      if (rowQty === 0) {
-        const qtyInput = row.querySelector('input[name*="qty" i], input[id*="qty" i], input[class*="qty" i], input[data-col*="qty" i], input[aria-label*="qty" i]');
-        if (qtyInput) {
-          const parsed = parseInt(cleanVal(qtyInput.value), 10);
-          if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
-            rowQty = parsed;
-          }
-        }
-      }
 
       if (barcodeColIdx !== -1 && cells[barcodeColIdx]) {
         const bInp = cells[barcodeColIdx].querySelector('input');
@@ -1019,6 +1019,51 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
         rowMrp = parseFloat(cleanVal(mInp ? mInp.value : cells[mrpColIdx].textContent)) || 0;
       }
 
+      // Case A: Logic ERP Size-Matrix / Cross-Tab Report (where sizes 6,7,8,9,10 are columns)
+      if (sizeMatrixCols.length >= 2 && (rowArticle || rowBarcode)) {
+        let addedMatrixSize = false;
+        sizeMatrixCols.forEach(({ colIdx, sizeLabel }) => {
+          if (!cells[colIdx]) return;
+          const cInp = cells[colIdx].querySelector('input');
+          const rawNum = parseInt(cleanVal(cInp ? cInp.value : cells[colIdx].textContent), 10);
+          if (!isNaN(rawNum) && rawNum >= 0 && rawNum <= 5000) {
+            const uniqueKey = (rowBarcode || rowArticle) + '__' + sizeLabel;
+            itemMap.set(uniqueKey, {
+              barcode: rowBarcode,
+              articleCode: rowArticle || rowBarcode,
+              itemName: rowArticle || rowBarcode,
+              size: sizeLabel,
+              qty: rawNum,
+              mrp: rowMrp
+            });
+            addedMatrixSize = true;
+          }
+        });
+        if (addedMatrixSize) return;
+      }
+
+      // Case B: Standard Row-per-Item / Row-per-Size Table
+      if (qtyColIdx !== -1 && cells[qtyColIdx]) {
+        const qInp = cells[qtyColIdx].querySelector('input');
+        const qText = cleanVal(qInp ? qInp.value : cells[qtyColIdx].textContent);
+        const parsed = parseInt(qText, 10);
+        if (!isNaN(parsed) && parsed >= 0 && parsed <= 5000) {
+          rowQty = parsed;
+        }
+      }
+
+      if (rowQty === 0) {
+        const qtyInput = row.querySelector(
+          'input[name*="qty" i], input[id*="qty" i], input[class*="qty" i], input[data-col*="qty" i], input[aria-label*="qty" i]'
+        );
+        if (qtyInput) {
+          const parsed = parseInt(cleanVal(qtyInput.value), 10);
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
+            rowQty = parsed;
+          }
+        }
+      }
+
       cells.forEach((cell, cellIdx) => {
         if (cellIdx === qtyColIdx || cellIdx === mrpColIdx) return;
 
@@ -1030,15 +1075,37 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
           rowBarcode = rawText;
         } else if (!rowSize && isLikelySize(rawText)) {
           rowSize = rawText;
-        } else if (!rowArticle && rawText.length >= 3 && rawText.length <= 30 && !/^\\d+(\\.\\d+)?$/.test(rawText)) {
+        } else if (
+          !rowArticle &&
+          rawText.length >= 3 &&
+          rawText.length <= 35 &&
+          !/^\\d+(\\.\\d+)?$/.test(rawText)
+        ) {
           const upper = rawText.toUpperCase();
-          if (!['ITEM', 'PRODUCT', 'CODE', 'QTY', 'RATE', 'DISC', 'AMOUNT', 'MRP', 'TAX', 'TOTAL', 'ACTION', 'STATUS'].includes(upper)) {
+          if (
+            ![
+              'ITEM',
+              'PRODUCT',
+              'CODE',
+              'QTY',
+              'RATE',
+              'DISC',
+              'AMOUNT',
+              'MRP',
+              'TAX',
+              'TOTAL',
+              'GRAND TOTAL',
+              'SUB TOTAL',
+              'ACTION',
+              'STATUS'
+            ].includes(upper)
+          ) {
             rowArticle = rawText;
           }
         }
       });
 
-      if (rowQty <= 0) {
+      if (rowQty <= 0 && qtyColIdx === -1) {
         rowQty = 1;
       }
 
@@ -1063,6 +1130,47 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
     return Array.from(itemMap.values());
   }
 
+  let lastAutoPageScrapeHash = '';
+  function autoScrapeOnLogicDashboardLoad() {
+    if (!isErpActiveOnPage || isSyncingStock) return;
+    const rows = scrapeCurrentBillRows();
+    if (!rows || rows.length === 0) return;
+
+    const hash = rows.map((r) => \`\${r.barcode || r.articleCode}:\${r.size}:\${r.qty}\`).join('|');
+    if (!hash || hash === lastAutoPageScrapeHash) return;
+    lastAutoPageScrapeHash = hash;
+
+    const widgetText = document.getElementById('stockscan-widget-text');
+    if (widgetText) {
+      widgetText.textContent = \`Logic Connected • Auto-Scraped \${rows.length} Rows\`;
+    }
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'STOCKSCAN_SYNC_FULL_STOCK',
+        rows,
+        source: PRECONFIGURED_STORE
+          ? \`Logic Dashboard Auto-Scrape (\${PRECONFIGURED_STORE})\`
+          : 'Logic Dashboard Auto-Scrape'
+      },
+      (res) => {
+        if (res && res.ok) {
+          showToast(
+            \`✅ StockScan Auto-Scrape: Logic Dashboard khulte hi \${res.totalArticles} Articles (\${res.totalPieces} Pairs) apne aap scrape hokar elooks.in par live sync ho gaye!\`,
+            '#047857'
+          );
+        }
+      }
+    );
+  }
+
+  // Automatically check and scrape whenever Logic Dashboard opens or renders a Stock table
+  setInterval(() => {
+    if (isErpActiveOnPage) {
+      autoScrapeOnLogicDashboardLoad();
+    }
+  }, 4500);
+
   function triggerFullStockSyncFromChrome() {
     if (isSyncingStock) return;
     const rows = scrapeCurrentBillRows();
@@ -1072,7 +1180,7 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
     }
 
     isSyncingStock = true;
-    showToast(\`⏳ StockScan: Syncing \${rows.length} stock rows from Logic Chrome ERP to elooks.in...\`, '#1e40af');
+    showToast(\`⏳ StockScan: Scraping & syncing \${rows.length} stock rows from Logic Dashboard to elooks.in...\`, '#1e40af');
 
     chrome.runtime.sendMessage(
       {
@@ -1086,7 +1194,7 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
         isSyncingStock = false;
         if (res && res.ok) {
           showToast(
-            \`✅ StockScan: Live Stock Synced! Total \${res.totalArticles} Articles (\${res.totalPieces} Pairs) on elooks.in\`,
+            \`✅ StockScan: Live Stock Scraped & Synced! Total \${res.totalArticles} Articles (\${res.totalPieces} Pairs) on elooks.in\`,
             '#047857'
           );
         } else {
