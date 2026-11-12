@@ -1,6 +1,14 @@
 {
-  "totalVisits": 119,
+  "totalVisits": 120,
   "visitors": [
+    {
+      "visitorId": "USR-GY7S1E",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "12 Nov, 04:18 pm",
+      "lastSeen": "12 Nov, 04:23 pm",
+      "lastSeenTs": 1794500606154,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-3I29SI",
       "device": "Windows PC · Chrome",
@@ -157,8 +165,8 @@
       "visitorId": "USR-MLM74K",
       "device": "Windows PC · Chrome",
       "firstSeen": "08 Nov, 08:58 pm",
-      "lastSeen": "12 Nov, 04:09 pm",
-      "lastSeenTs": 1794499773196,
+      "lastSeen": "10 Nov, 07:53 am",
+      "lastSeenTs": 1794277404072,
       "visitsCount": 4
     },
     {
@@ -713,7 +721,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794499773196,
+  "updatedAt": 1794500606154,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",

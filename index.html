@@ -60,9 +60,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="StockScan" />
-    <link rel="apple-touch-icon" href="./assets/stockscan.png" />
-    <link rel="icon" type="image/svg+xml" href="./assets/stockscan.svg" />
-    <link rel="manifest" href="./assets/stockscan2.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -91,31 +90,10 @@
       }
     </script>
     <style>:root{--font-sans:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;--font-mono:"JetBrains Mono", monospace}html,body{font-family:var(--font-sans);color:#0f172a;-webkit-font-smoothing:antialiased;background-color:#f1f5f9;margin:0;padding:0}code,pre,.font-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}.tabular-nums{font-variant-numeric:tabular-nums}#barcode-reader-viewport video{border-radius:.5rem;object-fit:cover!important;width:100%!important;height:100%!important}</style>
-  <link rel="manifest" href="./assets/stockscan2.webmanifest">  
-<link rel="manifest" href="./assets/stockscan2.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script>  
-<link rel="manifest" href="./assets/stockscan2.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script>  
-<link rel="manifest" href="./assets/stockscan2.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script>  <script type="module" crossorigin src="./assets/stockscan.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/stockscan.css">
-<link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+    <script type="module" crossorigin src="/assets/stockscan.js?v=1794500605190"></script>
+    <link rel="stylesheet" crossorigin href="/assets/stockscan.css?v=1794500605190">
+  <link rel="manifest" href="/manifest.webmanifest?v=1794500605190"></head>
   <body class="bg-slate-100 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
     <div id="root"></div>
-    <script>
-      (function () {
-        var isViteDev = !!document.querySelector('script[src*="@vite/client"]');
-        var isBuiltDist = !!document.querySelector('script[src*="assets/stockscan.js"]');
-        if (!isViteDev && !isBuiltDist) {
-          var v = 'ss_' + Date.now();
-          var base = window.location.pathname.indexOf('/stockscan-pro') === 0 ? '/stockscan-pro/' : '/';
-          var css = document.createElement('link');
-          css.rel = 'stylesheet';
-          css.href = base + 'assets/stockscan.css?v=' + v;
-          document.head.appendChild(css);
-          var script = document.createElement('script');
-          script.type = 'module';
-          script.src = base + 'assets/stockscan.js?v=' + v;
-          document.body.appendChild(script);
-        }
-      })();
-    </script>
   </body>
 </html>

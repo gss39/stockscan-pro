@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="112" fill="#0F172A"/>
+  <rect x="76" y="76" width="360" height="360" rx="64" stroke="#38BDF8" stroke-width="18" stroke-dasharray="60 220"/>
+  <!-- Barcode Bars -->
+  <rect x="136" y="152" width="24" height="208" rx="6" fill="#FFFFFF"/>
+  <rect x="180" y="152" width="12" height="208" rx="4" fill="#FFFFFF"/>
+  <rect x="212" y="152" width="32" height="208" rx="6" fill="#FFFFFF"/>
+  <rect x="264" y="152" width="16" height="208" rx="4" fill="#FFFFFF"/>
+  <rect x="300" y="152" width="24" height="208" rx="6" fill="#FFFFFF"/>
+  <rect x="344" y="152" width="32" height="208" rx="6" fill="#FFFFFF"/>
+  <!-- Laser Scan Line -->
+  <rect x="96" y="246" width="320" height="20" rx="10" fill="#2563EB"/>
+  <rect x="108" y="251" width="296" height="10" rx="5" fill="#60A5FA"/>
+</svg>

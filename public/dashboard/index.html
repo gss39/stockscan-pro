@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      (function () {
+        try {
+          var nativeFetch = window.fetch ? window.fetch.bind(window) : undefined;
+          if (nativeFetch) {
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function () {
+                return nativeFetch;
+              },
+              set: function (fn) {
+                if (typeof fn === 'function') {
+                  nativeFetch = fn;
+                }
+              }
+            });
+          }
+          if (typeof Window !== 'undefined' && Window.prototype) {
+            Object.defineProperty(Window.prototype, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function () {
+                return nativeFetch;
+              },
+              set: function (fn) {
+                if (typeof fn === 'function') {
+                  nativeFetch = fn;
+                }
+              }
+            });
+          }
+        } catch (e) {}
+
+        window.addEventListener(
+          'error',
+          function (event) {
+            var msg = String((event && event.message) || '');
+            var file = String((event && event.filename) || '');
+            if (
+              msg.indexOf('Cannot set property fetch') !== -1 ||
+              file.indexOf('chrome-extension://') !== -1
+            ) {
+              event.stopImmediatePropagation();
+              event.preventDefault();
+              return false;
+            }
+          },
+          true
+        );
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="StockScan" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>StockScan Pro — Barcode & Excel Inventory Checker</title>
+    <meta name="description" content="Instant barcode scanner and Excel stock availability checker for sales teams and warehouse staff." />
+    <meta property="og:title" content="StockScan Pro — Barcode & Excel Inventory Checker" />
+    <meta property="og:description" content="Instant barcode scanner and Excel stock availability checker for sales teams and warehouse staff." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      if (window.tailwind) {
+        window.tailwind.config = {
+          theme: {
+            extend: {
+              fontFamily: {
+                sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
+                mono: ['JetBrains Mono', 'monospace'],
+              },
+            },
+          },
+        };
+      }
+    </script>
+    <style>:root{--font-sans:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;--font-mono:"JetBrains Mono", monospace}html,body{font-family:var(--font-sans);color:#0f172a;-webkit-font-smoothing:antialiased;background-color:#f1f5f9;margin:0;padding:0}code,pre,.font-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}.tabular-nums{font-variant-numeric:tabular-nums}#barcode-reader-viewport video{border-radius:.5rem;object-fit:cover!important;width:100%!important;height:100%!important}</style>
+    <script type="module" crossorigin src="/assets/stockscan.js?v=1794500605190"></script>
+    <link rel="stylesheet" crossorigin href="/assets/stockscan.css?v=1794500605190">
+  <link rel="manifest" href="/manifest.webmanifest?v=1794500605190"></head>
+  <body class="bg-slate-100 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
+    <div id="root"></div>
+  </body>
+</html>
