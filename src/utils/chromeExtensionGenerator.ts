@@ -391,12 +391,120 @@ async function deductSoldItems(soldItems, sourceLabel) {
   };
 }
 
+// Syncs full stock report rows scraped from Logic ERP Chrome Stock / Inventory table into stock_data.json
+async function syncFullStockFromChromeTable(rows, sourceLabel) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, message: 'No stock rows found on current Logic ERP page.' };
+  }
+
+  const { payload } = await fetchStockFromGitHub();
+  const existingArticles = Array.isArray(payload.articles) ? payload.articles : [];
+  const articleMap = new Map();
+
+  for (const art of existingArticles) {
+    const key = cleanStr(art.articleCode || art.name);
+    if (key) {
+      articleMap.set(key, art);
+    }
+  }
+
+  let updatedCount = 0;
+  let addedCount = 0;
+
+  for (const r of rows) {
+    const code = cleanStr(r.articleCode || r.itemName || r.barcode);
+    if (!code) continue;
+    const sizeStr = cleanStr(r.size || 'STD') || 'STD';
+    const barcodeStr = String(r.barcode || '').trim();
+    const qtyNum = Math.max(0, Number(r.qty) || 0);
+    const mrpNum = Number(r.mrp) || 0;
+
+    let art = articleMap.get(code);
+    if (!art) {
+      art = {
+        articleCode: code,
+        name: String(r.itemName || code).trim(),
+        articleBarcode: barcodeStr,
+        color: '',
+        price: mrpNum > 0 ? mrpNum : undefined,
+        rack: 'Logic Chrome ERP',
+        sizes: [
+          {
+            size: sizeStr,
+            barcode: barcodeStr,
+            quantity: qtyNum
+          }
+        ]
+      };
+      articleMap.set(code, art);
+      existingArticles.push(art);
+      addedCount++;
+    } else {
+      if (!Array.isArray(art.sizes)) art.sizes = [];
+      const existingSize = art.sizes.find(
+        (s) =>
+          (barcodeStr && normalizeBarcode(s.barcode) === normalizeBarcode(barcodeStr)) ||
+          matchSizes(s.size, sizeStr)
+      );
+      if (existingSize) {
+        existingSize.quantity = qtyNum;
+        if (barcodeStr && !existingSize.barcode) existingSize.barcode = barcodeStr;
+      } else {
+        art.sizes.push({
+          size: sizeStr,
+          barcode: barcodeStr,
+          quantity: qtyNum
+        });
+      }
+      updatedCount++;
+    }
+  }
+
+  const mergedArticles = Array.from(articleMap.values());
+  const totalPieces = mergedArticles.reduce(
+    (sum, a) => sum + (a.sizes || []).reduce((s, sz) => s + Math.max(0, Number(sz.quantity) || 0), 0),
+    0
+  );
+
+  payload.articles = mergedArticles;
+  payload.version = Date.now();
+  payload.sheetMeta = {
+    fileName: sourceLabel || 'Logic Chrome ERP Live Sync',
+    uploadedAt: new Date().toLocaleString('en-IN'),
+    totalArticles: mergedArticles.length,
+    totalPieces
+  };
+
+  const newJsonStr = JSON.stringify(payload, null, 2);
+  const newBase64 = utf8ToBase64(newJsonStr);
+  const commitMsg = \`Logic Chrome ERP Stock Sync: \${mergedArticles.length} articles (\${totalPieces} pcs)\`;
+
+  await updateGitHubFileWithRetry('main', FILE_PATH, newBase64, commitMsg);
+  await updateGitHubFileWithRetry('main', PUBLIC_FILE_PATH, newBase64, commitMsg);
+  await updateGitHubFileWithRetry('gh-pages', FILE_PATH, newBase64, commitMsg);
+
+  return {
+    ok: true,
+    totalArticles: mergedArticles.length,
+    totalPieces,
+    updatedCount,
+    addedCount
+  };
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'STOCKSCAN_DEDUCT_ITEMS') {
     deductSoldItems(msg.items || [], msg.source || 'Logic ERP Bill')
       .then((res) => sendResponse(res))
       .catch((err) => sendResponse({ ok: false, message: String(err && err.message ? err.message : err) }));
     return true; // async response
+  }
+
+  if (msg && msg.type === 'STOCKSCAN_SYNC_FULL_STOCK') {
+    syncFullStockFromChromeTable(msg.rows || [], msg.source || 'Logic Chrome ERP Live Sync')
+      .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ ok: false, message: String(err && err.message ? err.message : err) }));
+    return true;
   }
 
   if (msg && msg.type === 'STOCKSCAN_GET_INFO') {
@@ -412,21 +520,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 `;
 }
 
-function getContentJs(): string {
+function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfiguredStore = ''): string {
   return `// ============================================================================
-// StockScan Pro — Logic ERP Content Script
-// ONLY scrapes active bill rows on Save / Print. Zero background key event tracking.
-// Strictly prevents duplicate / multiple pieces minus.
+// StockScan Pro — Logic ERP Chrome Dashboard Content Script
+// 1. Auto-Minus on Bill Save / Print (strictly reads QTY column)
+// 2. 1-Click Live Stock Table Sync from Logic ERP Chrome Inventory / Stock Report
 // ============================================================================
 
 (function () {
   if (window.__stockScanErpInjected) return;
   window.__stockScanErpInjected = true;
 
+  const PRECONFIGURED_HOST = '${preconfiguredHost.replace(/'/g, '')}'.toLowerCase();
+  const PRECONFIGURED_USER = '${preconfiguredUser.replace(/'/g, '')}';
+  const PRECONFIGURED_STORE = '${preconfiguredStore.replace(/'/g, '')}';
+
   let isDeducting = false;
+  let isSyncingStock = false;
   let lastDeductedBillHash = '';
   let lastDeductTimestamp = 0;
-  let allowedHosts = [];
+  let allowedHosts = PRECONFIGURED_HOST ? [PRECONFIGURED_HOST] : [];
   let blockedHosts = [];
   let isErpActiveOnPage = false;
 
@@ -450,6 +563,7 @@ function getContentJs(): string {
     if (!currentHost) return false;
     if (blockedHosts.includes(currentHost)) return false;
     if (allowedHosts.includes(currentHost)) return true;
+    if (PRECONFIGURED_HOST && currentHost.includes(PRECONFIGURED_HOST)) return true;
 
     for (const blocked of NEVER_AUTO_HOSTS) {
       if (currentHost === blocked || currentHost.endsWith('.' + blocked)) return false;
@@ -460,7 +574,7 @@ function getContentJs(): string {
     }
 
     const title = (document.title || '').toLowerCase();
-    if (title.includes('logic erp') || title.includes('logicerp') || title.includes('sale invoice') || title.includes('billing')) {
+    if (title.includes('logic erp') || title.includes('logicerp') || title.includes('sale invoice') || title.includes('billing') || title.includes('stock report')) {
       return true;
     }
 
@@ -486,7 +600,9 @@ function getContentJs(): string {
   }
 
   chrome.storage.local.get(['allowedHosts', 'blockedHosts'], (res) => {
-    if (res && Array.isArray(res.allowedHosts)) allowedHosts = res.allowedHosts;
+    if (res && Array.isArray(res.allowedHosts)) {
+      allowedHosts = Array.from(new Set([...allowedHosts, ...res.allowedHosts]));
+    }
     if (res && Array.isArray(res.blockedHosts)) blockedHosts = res.blockedHosts;
     refreshActivationState();
     setTimeout(refreshActivationState, 2000);
@@ -516,11 +632,11 @@ function getContentJs(): string {
   function scrapeCurrentBillRows() {
     const itemMap = new Map();
 
-    // 1. First, detect column indices from table headers (if present)
     let qtyColIdx = -1;
     let barcodeColIdx = -1;
     let articleColIdx = -1;
     let sizeColIdx = -1;
+    let mrpColIdx = -1;
 
     const headerRows = document.querySelectorAll('thead tr, tr.header, .ag-header-row, [role="rowheader"]');
     for (const hRow of headerRows) {
@@ -528,24 +644,24 @@ function getContentJs(): string {
       if (ths.length >= 2) {
         ths.forEach((th, idx) => {
           const t = cleanVal(th.textContent).toUpperCase();
-          if (/\b(QTY|QUANTITY|PCS|PIECES|BILL QTY|BILLED QTY|TOTAL QTY|ISSUE QTY)\b/i.test(t)) {
+          if (/\\b(QTY|QUANTITY|PCS|PIECES|BILL QTY|BILLED QTY|TOTAL QTY|ISSUE QTY|CLOSING|STOCK|BAL QTY|BALANCE)\\b/i.test(t)) {
             qtyColIdx = idx;
-          } else if (/\b(BARCODE|BAR CODE|UPC|EAN|PRODUCT CODE)\b/i.test(t)) {
+          } else if (/\\b(BARCODE|BAR CODE|UPC|EAN|PRODUCT CODE|LOT CODE)\\b/i.test(t)) {
             barcodeColIdx = idx;
-          } else if (/\b(ITEM|ARTICLE|ART NO|STYLE|DESCRIPTION|ITEM NAME)\b/i.test(t)) {
+          } else if (/\\b(ITEM|ARTICLE|ART NO|STYLE|DESCRIPTION|ITEM NAME|DESIGN)\\b/i.test(t)) {
             articleColIdx = idx;
-          } else if (/\b(SIZE|SZ|PARA1)\b/i.test(t)) {
+          } else if (/\\b(SIZE|SZ|PARA1|SHOE SIZE)\\b/i.test(t)) {
             sizeColIdx = idx;
+          } else if (/\\b(MRP|RATE|PRICE)\\b/i.test(t)) {
+            mrpColIdx = idx;
           }
         });
         if (qtyColIdx !== -1 || barcodeColIdx !== -1) break;
       }
     }
 
-    // 2. Scan each row in the bill grid
     const rows = document.querySelectorAll('tr, [role="row"], .ag-row, .ui-jqgrid-btable tr');
     rows.forEach((row) => {
-      // Ignore header rows
       if (row.closest('thead') || row.querySelector('th') || row.classList.contains('header')) return;
 
       const cells = Array.from(row.querySelectorAll('td, [role="gridcell"]'));
@@ -555,29 +671,27 @@ function getContentJs(): string {
       let rowArticle = '';
       let rowSize = '';
       let rowQty = 0;
+      let rowMrp = 0;
 
-      // A. Extract Qty strictly from the identified Qty column
       if (qtyColIdx !== -1 && cells[qtyColIdx]) {
         const qInp = cells[qtyColIdx].querySelector('input');
         const qText = cleanVal(qInp ? qInp.value : cells[qtyColIdx].textContent);
         const parsed = parseInt(qText, 10);
-        if (!isNaN(parsed) && parsed > 0 && parsed <= 500) {
+        if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
           rowQty = parsed;
         }
       }
 
-      // B. If not found via header index, look for an input explicitly labeled or classed with qty
       if (rowQty === 0) {
         const qtyInput = row.querySelector('input[name*="qty" i], input[id*="qty" i], input[class*="qty" i], input[data-col*="qty" i], input[aria-label*="qty" i]');
         if (qtyInput) {
           const parsed = parseInt(cleanVal(qtyInput.value), 10);
-          if (!isNaN(parsed) && parsed > 0 && parsed <= 500) {
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
             rowQty = parsed;
           }
         }
       }
 
-      // C. Extract Barcode, Article, and Size
       if (barcodeColIdx !== -1 && cells[barcodeColIdx]) {
         const bInp = cells[barcodeColIdx].querySelector('input');
         rowBarcode = cleanVal(bInp ? bInp.value : cells[barcodeColIdx].textContent);
@@ -590,11 +704,13 @@ function getContentJs(): string {
         const sInp = cells[sizeColIdx].querySelector('input');
         rowSize = cleanVal(sInp ? sInp.value : cells[sizeColIdx].textContent);
       }
+      if (mrpColIdx !== -1 && cells[mrpColIdx]) {
+        const mInp = cells[mrpColIdx].querySelector('input');
+        rowMrp = parseFloat(cleanVal(mInp ? mInp.value : cells[mrpColIdx].textContent)) || 0;
+      }
 
-      // Fallback cell scanning if specific columns weren't identified
       cells.forEach((cell, cellIdx) => {
-        // Skip qty column so its value is not mistaken for barcode/size
-        if (cellIdx === qtyColIdx) return;
+        if (cellIdx === qtyColIdx || cellIdx === mrpColIdx) return;
 
         const input = cell.querySelector('input');
         const rawText = input ? cleanVal(input.value) : cleanVal(cell.textContent);
@@ -612,7 +728,6 @@ function getContentJs(): string {
         }
       });
 
-      // Default quantity to 1 if not explicitly specified (never take random price/discount)
       if (rowQty <= 0) {
         rowQty = 1;
       }
@@ -628,7 +743,8 @@ function getContentJs(): string {
             articleCode: rowArticle,
             itemName: rowArticle,
             size: rowSize,
-            qty: rowQty
+            qty: rowQty,
+            mrp: rowMrp
           });
         }
       }
@@ -637,21 +753,51 @@ function getContentJs(): string {
     return Array.from(itemMap.values());
   }
 
+  function triggerFullStockSyncFromChrome() {
+    if (isSyncingStock) return;
+    const rows = scrapeCurrentBillRows();
+    if (!rows || rows.length === 0) {
+      showToast('⚠️ StockScan: Open a Logic ERP Stock Report or Inventory table first!', '#b45309');
+      return;
+    }
+
+    isSyncingStock = true;
+    showToast(\`⏳ StockScan: Syncing \${rows.length} stock rows from Logic Chrome ERP to elooks.in...\`, '#1e40af');
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'STOCKSCAN_SYNC_FULL_STOCK',
+        rows,
+        source: PRECONFIGURED_STORE
+          ? \`Logic Chrome ERP (\${PRECONFIGURED_STORE})\`
+          : 'Logic Chrome ERP Live Sync'
+      },
+      (res) => {
+        isSyncingStock = false;
+        if (res && res.ok) {
+          showToast(
+            \`✅ StockScan: Live Stock Synced! Total \${res.totalArticles} Articles (\${res.totalPieces} Pairs) on elooks.in\`,
+            '#047857'
+          );
+        } else {
+          showToast('⚠️ StockScan Sync Failed: ' + ((res && res.message) || 'Error'), '#b45309');
+        }
+      }
+    );
+  }
+
   function triggerBillDeduction(reason) {
     if (!isErpActiveOnPage || isDeducting) return;
 
-    // Small delay so Logic ERP finishes committing the active row into the DOM table
     setTimeout(() => {
       if (isDeducting) return;
 
       const items = scrapeCurrentBillRows();
       if (!items || items.length === 0) return;
 
-      // Fingerprint this bill to strictly prevent multiple/duplicate subtractions
       const billHash = items.map((i) => \`\${i.barcode || i.articleCode}:\${i.size || ''}:\${i.qty}\`).sort().join(';');
       const now = Date.now();
 
-      // If the exact same bill was already deducted within 15 seconds, ignore duplicate trigger
       if (now - lastDeductTimestamp < 15000 && billHash === lastDeductedBillHash) {
         return;
       }
@@ -761,15 +907,22 @@ function getContentJs(): string {
     const widget = document.createElement('div');
     widget.id = 'stockscan-erp-widget';
     widget.style.cssText =
-      'position:fixed;bottom:14px;right:14px;z-index:2147483646;background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid #334155;';
+      'position:fixed;bottom:14px;right:14px;z-index:2147483646;background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid #334155;';
 
+    const userBadge = PRECONFIGURED_USER ? \` (\${PRECONFIGURED_USER})\` : '';
     widget.innerHTML = \`
       <span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span>
-      <span id="stockscan-widget-text">StockScan: Bill Save/Print Auto-Minus Ready</span>
+      <span id="stockscan-widget-text">Logic Chrome Connected\${userBadge}</span>
+      <button id="stockscan-widget-sync-btn" style="background:#059669;color:#fff;border:none;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;">Sync Stock Table</button>
       <button id="stockscan-widget-deduct-btn" style="background:#2563eb;color:#fff;border:none;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;">Minus Bill Now</button>
     \`;
 
     document.body.appendChild(widget);
+
+    document.getElementById('stockscan-widget-sync-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerFullStockSyncFromChrome();
+    });
 
     document.getElementById('stockscan-widget-deduct-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -785,7 +938,7 @@ function getPopupHtml(): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>StockScan Pro Auto-Minus</title>
+  <title>StockScan Pro — Logic Chrome ERP Bridge</title>
   <style>
     body {
       width: 350px;
@@ -888,7 +1041,7 @@ function getPopupHtml(): string {
 </head>
 <body>
   <div class="header">
-    <div class="title">StockScan Auto-Minus</div>
+    <div class="title">Logic Chrome ERP Bridge</div>
     <span class="badge">elooks.in</span>
   </div>
 
@@ -1205,11 +1358,32 @@ function createZipArchive(files: { name: string; content: string }[]): Uint8Arra
   return out;
 }
 
-export function downloadChromeExtensionZip() {
+export interface ChromeErpBridgeConfig {
+  portalUrl?: string;
+  webUser?: string;
+  storeName?: string;
+}
+
+export function downloadChromeExtensionZip(config?: ChromeErpBridgeConfig) {
+  let host = '';
+  if (config?.portalUrl) {
+    try {
+      const urlStr = config.portalUrl.startsWith('http')
+        ? config.portalUrl
+        : `https://${config.portalUrl}`;
+      host = new URL(urlStr).hostname.toLowerCase();
+    } catch {
+      host = config.portalUrl.trim().toLowerCase();
+    }
+  }
+
   const files = [
     { name: 'manifest.json', content: getManifestJson() },
     { name: 'background.js', content: getBackgroundJs() },
-    { name: 'content.js', content: getContentJs() },
+    {
+      name: 'content.js',
+      content: getContentJs(host, config?.webUser || '', config?.storeName || '')
+    },
     { name: 'popup.html', content: getPopupHtml() },
     { name: 'popup.js', content: getPopupJs() }
   ];
@@ -1219,7 +1393,7 @@ export function downloadChromeExtensionZip() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'StockScan_Chrome_Extension.zip';
+  a.download = 'StockScan_Logic_Chrome_ERP_Bridge.zip';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

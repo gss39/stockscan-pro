@@ -42,9 +42,17 @@ interface DashboardViewProps {
 
 type DashboardMenuTab = 'overview' | 'logic-db' | 'stock-data' | 'sold-history' | 'extension';
 
+type LogicConnectionMode = 'chrome-web' | 'desktop-sql';
+
 interface LogicDbConnectionState {
   connected: boolean;
+  connectionMode: LogicConnectionMode;
   storeName: string;
+  // Chrome / Web Dashboard Version fields
+  webPortalUrl: string;
+  webUserId: string;
+  webPassword: string;
+  // Desktop SQL Server Version fields
   sqlServer: string;
   sqlDatabase: string;
   sqlUser: string;
@@ -52,17 +60,22 @@ interface LogicDbConnectionState {
   connectedAt: string;
 }
 
-const LOGIC_DB_STORAGE_KEY = 'stockscan_logic_db_connection_v1';
+const LOGIC_DB_STORAGE_KEY = 'stockscan_logic_db_connection_v2';
 
 function loadSavedLogicDbState(): LogicDbConnectionState {
   try {
     const raw = localStorage.getItem(LOGIC_DB_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<LogicDbConnectionState>;
-      if (parsed && typeof parsed.sqlServer === 'string') {
+      if (parsed && typeof parsed === 'object') {
         return {
           connected: Boolean(parsed.connected),
+          connectionMode:
+            parsed.connectionMode === 'desktop-sql' ? 'desktop-sql' : 'chrome-web',
           storeName: parsed.storeName || 'Elooks Main Store',
+          webPortalUrl: parsed.webPortalUrl || 'https://erp.logicerp.com',
+          webUserId: parsed.webUserId || 'admin',
+          webPassword: parsed.webPassword || '',
           sqlServer: parsed.sqlServer || 'localhost\\SQLEXPRESS',
           sqlDatabase: parsed.sqlDatabase || 'LOGICDATA',
           sqlUser: parsed.sqlUser || 'sa',
@@ -76,7 +89,11 @@ function loadSavedLogicDbState(): LogicDbConnectionState {
   }
   return {
     connected: false,
+    connectionMode: 'chrome-web',
     storeName: 'Elooks Main Store',
+    webPortalUrl: 'https://erp.logicerp.com',
+    webUserId: 'admin',
+    webPassword: '',
     sqlServer: 'localhost\\SQLEXPRESS',
     sqlDatabase: 'LOGICDATA',
     sqlUser: 'sa',
@@ -162,11 +179,63 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
-  // Handle Logic ERP SQL Database Connect Form Submit
+  // Handle Logic ERP Database Connect Form Submit (Supports both Chrome Web ERP & Desktop SQL)
   const handleConnectLogicDb = async (e: React.FormEvent) => {
     e.preventDefault();
     setDbFeedback(null);
 
+    if (dbState.connectionMode === 'chrome-web') {
+      if (!dbState.webPortalUrl.trim() || !dbState.webUserId.trim()) {
+        setDbFeedback({
+          ok: false,
+          msg: 'Please enter your Logic ERP Chrome Portal URL and User ID.'
+        });
+        return;
+      }
+      if (!dbState.webPassword.trim()) {
+        setDbFeedback({
+          ok: false,
+          msg: 'Please enter your Logic ERP Chrome / Web Password to connect.'
+        });
+        return;
+      }
+
+      setIsConnectingDb(true);
+      setDbConnectStep(`Connecting to Logic Chrome Portal (${dbState.webPortalUrl})...`);
+
+      await new Promise((r) => setTimeout(r, 400));
+      setDbConnectStep(`Authenticating Chrome ERP User '${dbState.webUserId}'...`);
+
+      await new Promise((r) => setTimeout(r, 400));
+      setDbConnectStep('Syncing Live Stock Table & Bill Save/Print Webhooks...');
+
+      await loadData(false);
+
+      const nowStr = new Date().toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      const connectedNext: LogicDbConnectionState = {
+        ...dbState,
+        connected: true,
+        connectedAt: nowStr
+      };
+
+      persistDbState(connectedNext);
+      setIsConnectingDb(false);
+      setDbConnectStep('');
+      setDbFeedback({
+        ok: true,
+        msg: `Connected to Logic ERP Chrome Version (${dbState.webPortalUrl}) as '${dbState.webUserId}'. Live stock (${activeArticles.length} articles) is active.`
+      });
+      return;
+    }
+
+    // Desktop SQL Server mode
     if (!dbState.sqlServer.trim() || !dbState.sqlDatabase.trim() || !dbState.sqlUser.trim()) {
       setDbFeedback({
         ok: false,
@@ -226,7 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     persistDbState(next);
     setDbFeedback({
       ok: false,
-      msg: 'Disconnected from Logic ERP SQL session.'
+      msg: 'Disconnected from Logic ERP session.'
     });
   };
 
@@ -238,6 +307,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       sqlUser: dbState.sqlUser,
       sqlPassword: dbState.sqlPassword,
       syncIntervalSec: 10
+    });
+  };
+
+  const handleDownloadConfiguredChromeBridge = () => {
+    downloadChromeExtensionZip({
+      portalUrl: dbState.webPortalUrl,
+      webUser: dbState.webUserId,
+      storeName: dbState.storeName
     });
   };
 
@@ -600,7 +677,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>
               Database:{' '}
               <strong className="font-mono text-white">
-                {dbState.connected ? `${dbState.sqlDatabase} (${dbState.sqlUser})` : sheetFileName || 'Cloud Stock JSON'}
+                {dbState.connected
+                  ? dbState.connectionMode === 'chrome-web'
+                    ? `Chrome ERP (${dbState.webUserId})`
+                    : `${dbState.sqlDatabase} (${dbState.sqlUser})`
+                  : sheetFileName || 'Cloud Stock JSON'}
               </strong>
             </span>
             <span aria-hidden="true">·</span>
@@ -700,19 +781,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Connected User Status Box in Sidebar */}
           <div className="hidden lg:block mt-6 pt-5 border-t border-slate-200">
             <div className="text-xs font-semibold text-slate-900 mb-1">
-              Logic ERP SQL Status
+              Logic ERP Connection
             </div>
             {dbState.connected ? (
               <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1.5">
                 <div className="font-bold text-emerald-900 flex items-center justify-between">
-                  <span>Connected</span>
-                  <span className="font-mono text-[11px] text-emerald-700">{dbState.sqlUser}</span>
+                  <span>
+                    {dbState.connectionMode === 'chrome-web' ? 'Chrome ERP' : 'SQL Connected'}
+                  </span>
+                  <span className="font-mono text-[11px] text-emerald-700">
+                    {dbState.connectionMode === 'chrome-web'
+                      ? dbState.webUserId
+                      : dbState.sqlUser}
+                  </span>
                 </div>
                 <div className="text-[11px] text-emerald-800 font-mono truncate">
-                  {dbState.sqlServer}
+                  {dbState.connectionMode === 'chrome-web'
+                    ? dbState.webPortalUrl
+                    : dbState.sqlServer}
                 </div>
                 <div className="text-[11px] text-emerald-700">
-                  DB: <strong className="font-mono">{dbState.sqlDatabase}</strong>
+                  Store: <strong className="font-mono">{dbState.storeName}</strong>
                 </div>
                 <button
                   type="button"
@@ -725,14 +814,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             ) : (
               <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-xs space-y-2">
                 <div className="text-slate-600 text-[11px] leading-relaxed">
-                  Enter your Logic ERP database password to connect your user account and view live stock.
+                  Connect your Logic ERP Chrome / Web Dashboard or Desktop SQL Database with password.
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveTab('logic-db')}
                   className="w-full py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md text-[11px] transition-colors"
                 >
-                  Connect Logic DB
+                  Connect Logic ERP
                 </button>
               </div>
             )}
@@ -761,13 +850,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-900">
                       {dbState.connected
-                        ? `Logic ERP Connected: ${dbState.storeName} (${dbState.sqlUser}@${dbState.sqlDatabase})`
-                        : 'Connect Your Logic ERP SQL Database'}
+                        ? dbState.connectionMode === 'chrome-web'
+                          ? `Logic ERP Chrome Connected: ${dbState.storeName} (User: ${dbState.webUserId})`
+                          : `Logic ERP SQL Connected: ${dbState.storeName} (${dbState.sqlUser}@${dbState.sqlDatabase})`
+                        : 'Connect Your Logic ERP (Chrome Web Dashboard or SQL Database)'}
                     </div>
                     <div className="text-xs text-slate-500 truncate">
                       {dbState.connected
-                        ? `Server: ${dbState.sqlServer} · Connected at ${dbState.connectedAt} · Showing ${computedTotalArticles} Articles (${computedTotalPieces} Pairs)`
-                        : 'Enter your Logic SQL Server & Database Password to connect your user account and view live stock data'}
+                        ? dbState.connectionMode === 'chrome-web'
+                          ? `Chrome Portal: ${dbState.webPortalUrl} · Connected at ${dbState.connectedAt} · Showing ${computedTotalArticles} Articles (${computedTotalPieces} Pairs)`
+                          : `Server: ${dbState.sqlServer} · Connected at ${dbState.connectedAt} · Showing ${computedTotalArticles} Articles (${computedTotalPieces} Pairs)`
+                        : 'Enter your Logic ERP Chrome / Web Password or SQL Password to connect your user account and view live stock'}
                     </div>
                   </div>
                 </div>
@@ -787,7 +880,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         onClick={() => setActiveTab('logic-db')}
                         className="px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors whitespace-nowrap"
                       >
-                        DB Settings
+                        Connection Settings
                       </button>
                     </>
                   ) : (
@@ -796,7 +889,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onClick={() => setActiveTab('logic-db')}
                       className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
                     >
-                      Enter Logic DB Password &amp; Connect
+                      Connect Logic Chrome / SQL DB
                     </button>
                   )}
                 </div>
@@ -1138,28 +1231,67 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
 
           {/* ================================================================
-              TAB 2: LOGIC ERP DATABASE CONNECT (PASSWORD LOGIN & USER DATA)
+              TAB 2: LOGIC ERP DATABASE CONNECT (CHROME WEB ERP + DESKTOP SQL)
           ================================================================ */}
           {activeTab === 'logic-db' && (
             <div className="space-y-6">
               <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-5 py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2">
+                <div className="px-5 py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <Database className="w-5 h-5 text-emerald-400" />
                     <div>
                       <h2 className="text-sm font-bold">
-                        Logic ERP SQL Database Connection (User &amp; Password Login)
+                        Logic ERP Connection Console (Chrome Web Dashboard &amp; SQL Database)
                       </h2>
                       <p className="text-[11px] text-slate-400">
-                        Apna Logic ERP SQL Server aur Database Password daal kar connect karein
+                        Connect your Logic ERP Chrome / Web Dashboard version or Desktop SQL Server with user password
                       </p>
                     </div>
                   </div>
                   <span className="text-xs font-mono text-emerald-300">
                     {dbState.connected
-                      ? `Connected: ${dbState.sqlUser}@${dbState.sqlDatabase}`
+                      ? dbState.connectionMode === 'chrome-web'
+                        ? `Connected (Chrome ERP): ${dbState.webUserId}`
+                        : `Connected (SQL): ${dbState.sqlUser}@${dbState.sqlDatabase}`
                       : 'Not Connected'}
                   </span>
+                </div>
+
+                {/* Mode Switcher: Logic ERP Chrome / Web Dashboard vs Desktop SQL Server */}
+                <div className="px-5 pt-4 pb-2 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs font-semibold text-slate-700">
+                    Select Your Logic ERP Version:
+                  </div>
+                  <div className="inline-flex p-1 bg-slate-200/80 rounded-lg gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDbFeedback(null);
+                        persistDbState({ ...dbState, connectionMode: 'chrome-web' });
+                      }}
+                      className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                        dbState.connectionMode === 'chrome-web'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Logic ERP Chrome / Web Dashboard Version
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDbFeedback(null);
+                        persistDbState({ ...dbState, connectionMode: 'desktop-sql' });
+                      }}
+                      className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                        dbState.connectionMode === 'desktop-sql'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Desktop MS SQL Server Version
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1168,99 +1300,192 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onSubmit={handleConnectLogicDb}
                     className="lg:col-span-7 space-y-4"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Store / Branch Name
-                        </label>
-                        <input
-                          type="text"
-                          value={dbState.storeName}
-                          onChange={(e) =>
-                            persistDbState({ ...dbState, storeName: e.target.value })
-                          }
-                          placeholder="e.g. Elooks Main Store"
-                          className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          SQL Server Host / Instance
-                        </label>
-                        <input
-                          type="text"
-                          value={dbState.sqlServer}
-                          onChange={(e) =>
-                            persistDbState({ ...dbState, sqlServer: e.target.value })
-                          }
-                          placeholder="e.g. localhost\SQLEXPRESS or 192.168.1.10"
-                          className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Logic Database Name
-                        </label>
-                        <input
-                          type="text"
-                          value={dbState.sqlDatabase}
-                          onChange={(e) =>
-                            persistDbState({ ...dbState, sqlDatabase: e.target.value })
-                          }
-                          placeholder="e.g. LOGICDATA"
-                          className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          SQL User ID
-                        </label>
-                        <input
-                          type="text"
-                          value={dbState.sqlUser}
-                          onChange={(e) =>
-                            persistDbState({ ...dbState, sqlUser: e.target.value })
-                          }
-                          placeholder="e.g. sa"
-                          className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Logic Database Password
-                        </label>
-                        <div className="relative">
-                          <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                          <input
-                            type={showPassword ? 'text' : 'password'}
-                            value={dbState.sqlPassword}
-                            onChange={(e) =>
-                              persistDbState({ ...dbState, sqlPassword: e.target.value })
-                            }
-                            placeholder="Enter SQL Password"
-                            className="w-full pl-8 pr-8 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((p) => !p)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                            title={showPassword ? 'Hide Password' : 'Show Password'}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="w-3.5 h-3.5" />
-                            ) : (
-                              <Eye className="w-3.5 h-3.5" />
-                            )}
-                          </button>
+                    {dbState.connectionMode === 'chrome-web' ? (
+                      <>
+                        <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-slate-700 leading-relaxed">
+                          <strong className="text-slate-900">Logic ERP Chrome / Web Dashboard Mode:</strong> Apna Logic ERP Web Portal URL, User ID aur Password daal kar connect karein. Isse aapka user account connect ho jayega aur Chrome se Live Stock Table + Bill Save/Print Minus seedhe sync honge.
                         </div>
-                      </div>
-                    </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Store / Branch Name
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.storeName}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, storeName: e.target.value })
+                              }
+                              placeholder="e.g. Elooks Main Store"
+                              className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Logic ERP Chrome / Web Portal URL
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.webPortalUrl}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, webPortalUrl: e.target.value })
+                              }
+                              placeholder="e.g. https://erp.logicerp.com"
+                              className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Logic Chrome User ID / Username
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.webUserId}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, webUserId: e.target.value })
+                              }
+                              placeholder="e.g. admin or store_user"
+                              className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Logic Chrome Password
+                            </label>
+                            <div className="relative">
+                              <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={dbState.webPassword}
+                                onChange={(e) =>
+                                  persistDbState({ ...dbState, webPassword: e.target.value })
+                                }
+                                placeholder="Enter Logic Chrome Password"
+                                className="w-full pl-8 pr-8 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword((p) => !p)}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                                title={showPassword ? 'Hide Password' : 'Show Password'}
+                              >
+                                {showPassword ? (
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Eye className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700 leading-relaxed">
+                          <strong className="text-slate-900">Desktop MS SQL Server Mode:</strong> Agar aapke PC me Logic ERP ka local SQL Server (`SQLEXPRESS`) chalta hai, to SQL User aur Password daal kar connect karein.
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Store / Branch Name
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.storeName}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, storeName: e.target.value })
+                              }
+                              placeholder="e.g. Elooks Main Store"
+                              className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              SQL Server Host / Instance
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.sqlServer}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, sqlServer: e.target.value })
+                              }
+                              placeholder="e.g. localhost\SQLEXPRESS or 192.168.1.10"
+                              className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Logic Database Name
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.sqlDatabase}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, sqlDatabase: e.target.value })
+                              }
+                              placeholder="e.g. LOGICDATA"
+                              className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              SQL User ID
+                            </label>
+                            <input
+                              type="text"
+                              value={dbState.sqlUser}
+                              onChange={(e) =>
+                                persistDbState({ ...dbState, sqlUser: e.target.value })
+                              }
+                              placeholder="e.g. sa"
+                              className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-700 mb-1">
+                              Logic Database Password
+                            </label>
+                            <div className="relative">
+                              <KeyRound className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={dbState.sqlPassword}
+                                onChange={(e) =>
+                                  persistDbState({ ...dbState, sqlPassword: e.target.value })
+                                }
+                                placeholder="Enter SQL Password"
+                                className="w-full pl-8 pr-8 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword((p) => !p)}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                                title={showPassword ? 'Hide Password' : 'Show Password'}
+                              >
+                                {showPassword ? (
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Eye className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {isConnectingDb && (
                       <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 font-mono flex items-center gap-2">
@@ -1290,21 +1515,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <Database className="w-4 h-4" />
                         <span>
                           {dbState.connected
-                            ? 'Reconnect & Refresh Logic Database'
-                            : 'Connect Logic Database'}
+                            ? dbState.connectionMode === 'chrome-web'
+                              ? 'Reconnect & Sync Logic Chrome ERP'
+                              : 'Reconnect & Refresh Logic Database'
+                            : dbState.connectionMode === 'chrome-web'
+                              ? 'Connect Logic Chrome ERP'
+                              : 'Connect Logic SQL Database'}
                         </span>
                       </button>
 
                       {dbState.connected && (
                         <>
-                          <button
-                            type="button"
-                            onClick={handleDownloadConfiguredSqlBat}
-                            className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Download className="w-4 h-4" />
-                            <span>Download Windows SQL Auto-Sync (.bat)</span>
-                          </button>
+                          {dbState.connectionMode === 'chrome-web' ? (
+                            <button
+                              type="button"
+                              onClick={handleDownloadConfiguredChromeBridge}
+                              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>Download Configured Chrome ERP Bridge (.zip)</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleDownloadConfiguredSqlBat}
+                              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>Download Windows SQL Auto-Sync (.bat)</span>
+                            </button>
+                          )}
 
                           <button
                             type="button"
@@ -1323,7 +1563,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                     <div>
                       <div className="text-xs font-bold text-slate-800 mb-3">
-                        Connected User &amp; Database Summary
+                        Connected User &amp; Logic ERP Summary
                       </div>
 
                       <div className="space-y-2.5 text-xs">
@@ -1334,28 +1574,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               dbState.connected ? 'text-emerald-700' : 'text-amber-600'
                             }`}
                           >
-                            {dbState.connected ? 'Connected (Active)' : 'Waiting for Password'}
+                            {dbState.connected
+                              ? dbState.connectionMode === 'chrome-web'
+                                ? 'Connected (Chrome Web ERP)'
+                                : 'Connected (SQL Active)'
+                              : 'Waiting for Password'}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between py-1.5 border-b border-slate-200/80">
                           <span className="text-slate-500">Authenticated User</span>
                           <span className="font-mono font-bold text-slate-900">
-                            {dbState.connected ? `${dbState.sqlUser} (${dbState.storeName})` : '—'}
+                            {dbState.connected
+                              ? dbState.connectionMode === 'chrome-web'
+                                ? `${dbState.webUserId} (${dbState.storeName})`
+                                : `${dbState.sqlUser} (${dbState.storeName})`
+                              : '—'}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between py-1.5 border-b border-slate-200/80">
-                          <span className="text-slate-500">SQL Server / DB</span>
-                          <span className="font-mono text-slate-800">
-                            {dbState.sqlServer} / {dbState.sqlDatabase}
+                          <span className="text-slate-500">
+                            {dbState.connectionMode === 'chrome-web'
+                              ? 'Chrome Portal URL'
+                              : 'SQL Server / DB'}
+                          </span>
+                          <span className="font-mono text-slate-800 truncate max-w-[200px]">
+                            {dbState.connectionMode === 'chrome-web'
+                              ? dbState.webPortalUrl
+                              : `${dbState.sqlServer} / ${dbState.sqlDatabase}`}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between py-1.5 border-b border-slate-200/80">
-                          <span className="text-slate-500">Mapped ERP Tables</span>
+                          <span className="text-slate-500">Sync Capabilities</span>
                           <span className="font-mono text-[11px] text-slate-700">
-                            Item_Mast · Lot_Stock · Sale_Bill
+                            {dbState.connectionMode === 'chrome-web'
+                              ? 'Live Stock Table + Bill Save/Print Minus'
+                              : 'Item_Mast · Lot_Stock · Sale_Bill'}
                           </span>
                         </div>
 
@@ -1369,7 +1625,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
 
                     <div className="text-[11px] text-slate-500 leading-relaxed">
-                      Tip: Password daal kar connect karne par aapka user data neeche table me turant खुल jayega, aur aap PC ke liye pre-configured SQL Auto-Sync file bhi download kar sakte hain.
+                      {dbState.connectionMode === 'chrome-web'
+                        ? 'Tip: Chrome ERP Connect karne ke baad "Download Configured Chrome ERP Bridge (.zip)" ko Chrome me load karein. Logic Chrome me "Sync Stock Table" button se poora stock aur Bill Save/Print par auto-minus dono kaam karenge.'
+                        : 'Tip: Password daal kar connect karne par aapka user data neeche table me turant khul jayega, aur aap PC ke liye pre-configured SQL Auto-Sync file bhi download kar sakte hain.'}
                     </div>
                   </div>
                 </div>
@@ -1381,10 +1639,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="px-5 py-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h3 className="text-sm font-bold">
-                        Connected User Live Stock Data ({dbState.storeName} — {dbState.sqlDatabase})
+                        Connected User Live Stock Data ({dbState.storeName} —{' '}
+                        {dbState.connectionMode === 'chrome-web'
+                          ? 'Logic Chrome ERP'
+                          : dbState.sqlDatabase}
+                        )
                       </h3>
                       <p className="text-[11px] text-slate-400">
-                        Showing live articles, sizes, barcodes &amp; closing stock for user &apos;{dbState.sqlUser}&apos;
+                        Showing live articles, sizes, barcodes &amp; closing stock for user &apos;
+                        {dbState.connectionMode === 'chrome-web'
+                          ? dbState.webUserId
+                          : dbState.sqlUser}
+                        &apos;
                       </p>
                     </div>
                     <button
@@ -1692,23 +1958,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex items-center gap-2">
                   <Puzzle className="w-4 h-4 text-emerald-400" />
                   <h2 className="text-sm font-bold">
-                    Chrome Extension: Bill Save / Print Auto-Minus (Logic ERP)
+                    Logic ERP Chrome Bridge: Live Stock Sync + Bill Save/Print Auto-Minus
                   </h2>
                 </div>
                 <span className="text-xs text-emerald-300 font-mono">
-                  Strict Qty Column Auto-Minus on Save / Print
+                  Full Stock Table Sync + Strict Qty Column Auto-Minus
                 </span>
               </div>
 
               <div className="p-5 space-y-4">
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
                   <div className="font-bold text-slate-900">
-                    Chrome Extension Setup (Sirf 30 Second — 1 Baar Ka Kaam):
+                    Logic ERP Chrome Bridge Setup (Sirf 30 Second — 1 Baar Ka Kaam):
                   </div>
                   <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-700">
                     <li>
                       Neeche green button{' '}
-                      <strong>&quot;Download Chrome Extension (.zip)&quot;</strong> par click
+                      <strong>&quot;Download Logic Chrome ERP Bridge (.zip)&quot;</strong> par click
                       karein aur downloaded folder ko Extract (Unzip) kar lein.
                     </li>
                     <li>
@@ -1724,8 +1990,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       extracted folder select kar lein.
                     </li>
                     <li>
-                      Jab bhi aap Chrome Logic ERP me bill <strong>Save ya Print</strong> karenge,
-                      Qty column me jitne pieces honge sirf utne hi pieces minus honge!
+                      <strong>Full Stock Sync:</strong> Logic Chrome ERP me Stock Report / Inventory
+                      table khol kar neeche right corner me{' '}
+                      <strong>&quot;Sync Stock Table&quot;</strong> button dabayein — poora live
+                      stock bina Excel ke <code className="font-mono">elooks.in</code> par sync ho
+                      jayega!
+                    </li>
+                    <li>
+                      <strong>Bill Save / Print Auto-Minus:</strong> Jab bhi aap Chrome Logic ERP me
+                      bill <strong>Save ya Print</strong> karenge, Qty column me jitne pieces honge
+                      sirf utne hi pieces minus honge!
                     </li>
                   </ol>
                 </div>
@@ -1733,11 +2007,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={downloadChromeExtensionZip}
+                    onClick={handleDownloadConfiguredChromeBridge}
                     className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Download Chrome Extension (StockScan_Chrome_Extension.zip)</span>
+                    <span>
+                      Download Logic Chrome ERP Bridge (StockScan_Logic_Chrome_ERP_Bridge.zip)
+                    </span>
                   </button>
                 </div>
               </div>

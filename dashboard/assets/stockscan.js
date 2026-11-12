@@ -41657,12 +41657,120 @@ async function deductSoldItems(soldItems, sourceLabel) {
   };
 }
 
+// Syncs full stock report rows scraped from Logic ERP Chrome Stock / Inventory table into stock_data.json
+async function syncFullStockFromChromeTable(rows, sourceLabel) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, message: 'No stock rows found on current Logic ERP page.' };
+  }
+
+  const { payload } = await fetchStockFromGitHub();
+  const existingArticles = Array.isArray(payload.articles) ? payload.articles : [];
+  const articleMap = new Map();
+
+  for (const art of existingArticles) {
+    const key = cleanStr(art.articleCode || art.name);
+    if (key) {
+      articleMap.set(key, art);
+    }
+  }
+
+  let updatedCount = 0;
+  let addedCount = 0;
+
+  for (const r of rows) {
+    const code = cleanStr(r.articleCode || r.itemName || r.barcode);
+    if (!code) continue;
+    const sizeStr = cleanStr(r.size || 'STD') || 'STD';
+    const barcodeStr = String(r.barcode || '').trim();
+    const qtyNum = Math.max(0, Number(r.qty) || 0);
+    const mrpNum = Number(r.mrp) || 0;
+
+    let art = articleMap.get(code);
+    if (!art) {
+      art = {
+        articleCode: code,
+        name: String(r.itemName || code).trim(),
+        articleBarcode: barcodeStr,
+        color: '',
+        price: mrpNum > 0 ? mrpNum : undefined,
+        rack: 'Logic Chrome ERP',
+        sizes: [
+          {
+            size: sizeStr,
+            barcode: barcodeStr,
+            quantity: qtyNum
+          }
+        ]
+      };
+      articleMap.set(code, art);
+      existingArticles.push(art);
+      addedCount++;
+    } else {
+      if (!Array.isArray(art.sizes)) art.sizes = [];
+      const existingSize = art.sizes.find(
+        (s) =>
+          (barcodeStr && normalizeBarcode(s.barcode) === normalizeBarcode(barcodeStr)) ||
+          matchSizes(s.size, sizeStr)
+      );
+      if (existingSize) {
+        existingSize.quantity = qtyNum;
+        if (barcodeStr && !existingSize.barcode) existingSize.barcode = barcodeStr;
+      } else {
+        art.sizes.push({
+          size: sizeStr,
+          barcode: barcodeStr,
+          quantity: qtyNum
+        });
+      }
+      updatedCount++;
+    }
+  }
+
+  const mergedArticles = Array.from(articleMap.values());
+  const totalPieces = mergedArticles.reduce(
+    (sum, a) => sum + (a.sizes || []).reduce((s, sz) => s + Math.max(0, Number(sz.quantity) || 0), 0),
+    0
+  );
+
+  payload.articles = mergedArticles;
+  payload.version = Date.now();
+  payload.sheetMeta = {
+    fileName: sourceLabel || 'Logic Chrome ERP Live Sync',
+    uploadedAt: new Date().toLocaleString('en-IN'),
+    totalArticles: mergedArticles.length,
+    totalPieces
+  };
+
+  const newJsonStr = JSON.stringify(payload, null, 2);
+  const newBase64 = utf8ToBase64(newJsonStr);
+  const commitMsg = \`Logic Chrome ERP Stock Sync: \${mergedArticles.length} articles (\${totalPieces} pcs)\`;
+
+  await updateGitHubFileWithRetry('main', FILE_PATH, newBase64, commitMsg);
+  await updateGitHubFileWithRetry('main', PUBLIC_FILE_PATH, newBase64, commitMsg);
+  await updateGitHubFileWithRetry('gh-pages', FILE_PATH, newBase64, commitMsg);
+
+  return {
+    ok: true,
+    totalArticles: mergedArticles.length,
+    totalPieces,
+    updatedCount,
+    addedCount
+  };
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'STOCKSCAN_DEDUCT_ITEMS') {
     deductSoldItems(msg.items || [], msg.source || 'Logic ERP Bill')
       .then((res) => sendResponse(res))
       .catch((err) => sendResponse({ ok: false, message: String(err && err.message ? err.message : err) }));
     return true; // async response
+  }
+
+  if (msg && msg.type === 'STOCKSCAN_SYNC_FULL_STOCK') {
+    syncFullStockFromChromeTable(msg.rows || [], msg.source || 'Logic Chrome ERP Live Sync')
+      .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ ok: false, message: String(err && err.message ? err.message : err) }));
+    return true;
   }
 
   if (msg && msg.type === 'STOCKSCAN_GET_INFO') {
@@ -41677,21 +41785,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 `;
 }
-function getContentJs() {
+function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfiguredStore = "") {
 	return `// ============================================================================
-// StockScan Pro — Logic ERP Content Script
-// ONLY scrapes active bill rows on Save / Print. Zero background key event tracking.
-// Strictly prevents duplicate / multiple pieces minus.
+// StockScan Pro — Logic ERP Chrome Dashboard Content Script
+// 1. Auto-Minus on Bill Save / Print (strictly reads QTY column)
+// 2. 1-Click Live Stock Table Sync from Logic ERP Chrome Inventory / Stock Report
 // ============================================================================
 
 (function () {
   if (window.__stockScanErpInjected) return;
   window.__stockScanErpInjected = true;
 
+  const PRECONFIGURED_HOST = '${preconfiguredHost.replace(/'/g, "")}'.toLowerCase();
+  const PRECONFIGURED_USER = '${preconfiguredUser.replace(/'/g, "")}';
+  const PRECONFIGURED_STORE = '${preconfiguredStore.replace(/'/g, "")}';
+
   let isDeducting = false;
+  let isSyncingStock = false;
   let lastDeductedBillHash = '';
   let lastDeductTimestamp = 0;
-  let allowedHosts = [];
+  let allowedHosts = PRECONFIGURED_HOST ? [PRECONFIGURED_HOST] : [];
   let blockedHosts = [];
   let isErpActiveOnPage = false;
 
@@ -41715,6 +41828,7 @@ function getContentJs() {
     if (!currentHost) return false;
     if (blockedHosts.includes(currentHost)) return false;
     if (allowedHosts.includes(currentHost)) return true;
+    if (PRECONFIGURED_HOST && currentHost.includes(PRECONFIGURED_HOST)) return true;
 
     for (const blocked of NEVER_AUTO_HOSTS) {
       if (currentHost === blocked || currentHost.endsWith('.' + blocked)) return false;
@@ -41725,7 +41839,7 @@ function getContentJs() {
     }
 
     const title = (document.title || '').toLowerCase();
-    if (title.includes('logic erp') || title.includes('logicerp') || title.includes('sale invoice') || title.includes('billing')) {
+    if (title.includes('logic erp') || title.includes('logicerp') || title.includes('sale invoice') || title.includes('billing') || title.includes('stock report')) {
       return true;
     }
 
@@ -41751,7 +41865,9 @@ function getContentJs() {
   }
 
   chrome.storage.local.get(['allowedHosts', 'blockedHosts'], (res) => {
-    if (res && Array.isArray(res.allowedHosts)) allowedHosts = res.allowedHosts;
+    if (res && Array.isArray(res.allowedHosts)) {
+      allowedHosts = Array.from(new Set([...allowedHosts, ...res.allowedHosts]));
+    }
     if (res && Array.isArray(res.blockedHosts)) blockedHosts = res.blockedHosts;
     refreshActivationState();
     setTimeout(refreshActivationState, 2000);
@@ -41781,11 +41897,11 @@ function getContentJs() {
   function scrapeCurrentBillRows() {
     const itemMap = new Map();
 
-    // 1. First, detect column indices from table headers (if present)
     let qtyColIdx = -1;
     let barcodeColIdx = -1;
     let articleColIdx = -1;
     let sizeColIdx = -1;
+    let mrpColIdx = -1;
 
     const headerRows = document.querySelectorAll('thead tr, tr.header, .ag-header-row, [role="rowheader"]');
     for (const hRow of headerRows) {
@@ -41793,24 +41909,24 @@ function getContentJs() {
       if (ths.length >= 2) {
         ths.forEach((th, idx) => {
           const t = cleanVal(th.textContent).toUpperCase();
-          if (/\b(QTY|QUANTITY|PCS|PIECES|BILL QTY|BILLED QTY|TOTAL QTY|ISSUE QTY)\b/i.test(t)) {
+          if (/\\b(QTY|QUANTITY|PCS|PIECES|BILL QTY|BILLED QTY|TOTAL QTY|ISSUE QTY|CLOSING|STOCK|BAL QTY|BALANCE)\\b/i.test(t)) {
             qtyColIdx = idx;
-          } else if (/\b(BARCODE|BAR CODE|UPC|EAN|PRODUCT CODE)\b/i.test(t)) {
+          } else if (/\\b(BARCODE|BAR CODE|UPC|EAN|PRODUCT CODE|LOT CODE)\\b/i.test(t)) {
             barcodeColIdx = idx;
-          } else if (/\b(ITEM|ARTICLE|ART NO|STYLE|DESCRIPTION|ITEM NAME)\b/i.test(t)) {
+          } else if (/\\b(ITEM|ARTICLE|ART NO|STYLE|DESCRIPTION|ITEM NAME|DESIGN)\\b/i.test(t)) {
             articleColIdx = idx;
-          } else if (/\b(SIZE|SZ|PARA1)\b/i.test(t)) {
+          } else if (/\\b(SIZE|SZ|PARA1|SHOE SIZE)\\b/i.test(t)) {
             sizeColIdx = idx;
+          } else if (/\\b(MRP|RATE|PRICE)\\b/i.test(t)) {
+            mrpColIdx = idx;
           }
         });
         if (qtyColIdx !== -1 || barcodeColIdx !== -1) break;
       }
     }
 
-    // 2. Scan each row in the bill grid
     const rows = document.querySelectorAll('tr, [role="row"], .ag-row, .ui-jqgrid-btable tr');
     rows.forEach((row) => {
-      // Ignore header rows
       if (row.closest('thead') || row.querySelector('th') || row.classList.contains('header')) return;
 
       const cells = Array.from(row.querySelectorAll('td, [role="gridcell"]'));
@@ -41820,29 +41936,27 @@ function getContentJs() {
       let rowArticle = '';
       let rowSize = '';
       let rowQty = 0;
+      let rowMrp = 0;
 
-      // A. Extract Qty strictly from the identified Qty column
       if (qtyColIdx !== -1 && cells[qtyColIdx]) {
         const qInp = cells[qtyColIdx].querySelector('input');
         const qText = cleanVal(qInp ? qInp.value : cells[qtyColIdx].textContent);
         const parsed = parseInt(qText, 10);
-        if (!isNaN(parsed) && parsed > 0 && parsed <= 500) {
+        if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
           rowQty = parsed;
         }
       }
 
-      // B. If not found via header index, look for an input explicitly labeled or classed with qty
       if (rowQty === 0) {
         const qtyInput = row.querySelector('input[name*="qty" i], input[id*="qty" i], input[class*="qty" i], input[data-col*="qty" i], input[aria-label*="qty" i]');
         if (qtyInput) {
           const parsed = parseInt(cleanVal(qtyInput.value), 10);
-          if (!isNaN(parsed) && parsed > 0 && parsed <= 500) {
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 5000) {
             rowQty = parsed;
           }
         }
       }
 
-      // C. Extract Barcode, Article, and Size
       if (barcodeColIdx !== -1 && cells[barcodeColIdx]) {
         const bInp = cells[barcodeColIdx].querySelector('input');
         rowBarcode = cleanVal(bInp ? bInp.value : cells[barcodeColIdx].textContent);
@@ -41855,11 +41969,13 @@ function getContentJs() {
         const sInp = cells[sizeColIdx].querySelector('input');
         rowSize = cleanVal(sInp ? sInp.value : cells[sizeColIdx].textContent);
       }
+      if (mrpColIdx !== -1 && cells[mrpColIdx]) {
+        const mInp = cells[mrpColIdx].querySelector('input');
+        rowMrp = parseFloat(cleanVal(mInp ? mInp.value : cells[mrpColIdx].textContent)) || 0;
+      }
 
-      // Fallback cell scanning if specific columns weren't identified
       cells.forEach((cell, cellIdx) => {
-        // Skip qty column so its value is not mistaken for barcode/size
-        if (cellIdx === qtyColIdx) return;
+        if (cellIdx === qtyColIdx || cellIdx === mrpColIdx) return;
 
         const input = cell.querySelector('input');
         const rawText = input ? cleanVal(input.value) : cleanVal(cell.textContent);
@@ -41877,7 +41993,6 @@ function getContentJs() {
         }
       });
 
-      // Default quantity to 1 if not explicitly specified (never take random price/discount)
       if (rowQty <= 0) {
         rowQty = 1;
       }
@@ -41893,7 +42008,8 @@ function getContentJs() {
             articleCode: rowArticle,
             itemName: rowArticle,
             size: rowSize,
-            qty: rowQty
+            qty: rowQty,
+            mrp: rowMrp
           });
         }
       }
@@ -41902,21 +42018,51 @@ function getContentJs() {
     return Array.from(itemMap.values());
   }
 
+  function triggerFullStockSyncFromChrome() {
+    if (isSyncingStock) return;
+    const rows = scrapeCurrentBillRows();
+    if (!rows || rows.length === 0) {
+      showToast('⚠️ StockScan: Open a Logic ERP Stock Report or Inventory table first!', '#b45309');
+      return;
+    }
+
+    isSyncingStock = true;
+    showToast(\`⏳ StockScan: Syncing \${rows.length} stock rows from Logic Chrome ERP to elooks.in...\`, '#1e40af');
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'STOCKSCAN_SYNC_FULL_STOCK',
+        rows,
+        source: PRECONFIGURED_STORE
+          ? \`Logic Chrome ERP (\${PRECONFIGURED_STORE})\`
+          : 'Logic Chrome ERP Live Sync'
+      },
+      (res) => {
+        isSyncingStock = false;
+        if (res && res.ok) {
+          showToast(
+            \`✅ StockScan: Live Stock Synced! Total \${res.totalArticles} Articles (\${res.totalPieces} Pairs) on elooks.in\`,
+            '#047857'
+          );
+        } else {
+          showToast('⚠️ StockScan Sync Failed: ' + ((res && res.message) || 'Error'), '#b45309');
+        }
+      }
+    );
+  }
+
   function triggerBillDeduction(reason) {
     if (!isErpActiveOnPage || isDeducting) return;
 
-    // Small delay so Logic ERP finishes committing the active row into the DOM table
     setTimeout(() => {
       if (isDeducting) return;
 
       const items = scrapeCurrentBillRows();
       if (!items || items.length === 0) return;
 
-      // Fingerprint this bill to strictly prevent multiple/duplicate subtractions
       const billHash = items.map((i) => \`\${i.barcode || i.articleCode}:\${i.size || ''}:\${i.qty}\`).sort().join(';');
       const now = Date.now();
 
-      // If the exact same bill was already deducted within 15 seconds, ignore duplicate trigger
       if (now - lastDeductTimestamp < 15000 && billHash === lastDeductedBillHash) {
         return;
       }
@@ -42026,15 +42172,22 @@ function getContentJs() {
     const widget = document.createElement('div');
     widget.id = 'stockscan-erp-widget';
     widget.style.cssText =
-      'position:fixed;bottom:14px;right:14px;z-index:2147483646;background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid #334155;';
+      'position:fixed;bottom:14px;right:14px;z-index:2147483646;background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(0,0,0,0.3);border:1px solid #334155;';
 
+    const userBadge = PRECONFIGURED_USER ? \` (\${PRECONFIGURED_USER})\` : '';
     widget.innerHTML = \`
       <span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span>
-      <span id="stockscan-widget-text">StockScan: Bill Save/Print Auto-Minus Ready</span>
+      <span id="stockscan-widget-text">Logic Chrome Connected\${userBadge}</span>
+      <button id="stockscan-widget-sync-btn" style="background:#059669;color:#fff;border:none;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;">Sync Stock Table</button>
       <button id="stockscan-widget-deduct-btn" style="background:#2563eb;color:#fff;border:none;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;cursor:pointer;">Minus Bill Now</button>
     \`;
 
     document.body.appendChild(widget);
+
+    document.getElementById('stockscan-widget-sync-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerFullStockSyncFromChrome();
+    });
 
     document.getElementById('stockscan-widget-deduct-btn').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -42049,7 +42202,7 @@ function getPopupHtml() {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>StockScan Pro Auto-Minus</title>
+  <title>StockScan Pro — Logic Chrome ERP Bridge</title>
   <style>
     body {
       width: 350px;
@@ -42152,7 +42305,7 @@ function getPopupHtml() {
 </head>
 <body>
   <div class="header">
-    <div class="title">StockScan Auto-Minus</div>
+    <div class="title">Logic Chrome ERP Bridge</div>
     <span class="badge">elooks.in</span>
   </div>
 
@@ -42447,7 +42600,14 @@ function createZipArchive(files) {
 	view.setUint16(ptr + 20, 0, true);
 	return out;
 }
-function downloadChromeExtensionZip() {
+function downloadChromeExtensionZip(config) {
+	let host = "";
+	if (config?.portalUrl) try {
+		const urlStr = config.portalUrl.startsWith("http") ? config.portalUrl : `https://${config.portalUrl}`;
+		host = new URL(urlStr).hostname.toLowerCase();
+	} catch {
+		host = config.portalUrl.trim().toLowerCase();
+	}
 	const zipBytes = createZipArchive([
 		{
 			name: "manifest.json",
@@ -42459,7 +42619,7 @@ function downloadChromeExtensionZip() {
 		},
 		{
 			name: "content.js",
-			content: getContentJs()
+			content: getContentJs(host, config?.webUser || "", config?.storeName || "")
 		},
 		{
 			name: "popup.html",
@@ -42474,7 +42634,7 @@ function downloadChromeExtensionZip() {
 	const url = URL.createObjectURL(blob);
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = "StockScan_Chrome_Extension.zip";
+	a.download = "StockScan_Logic_Chrome_ERP_Bridge.zip";
 	document.body.appendChild(a);
 	a.click();
 	document.body.removeChild(a);
@@ -42846,15 +43006,19 @@ var require_react_jsx_runtime_production = /* @__PURE__ */ __commonJSMin(((expor
 var import_jsx_runtime = (/* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = require_react_jsx_runtime_production();
 })))();
-var LOGIC_DB_STORAGE_KEY = "stockscan_logic_db_connection_v1";
+var LOGIC_DB_STORAGE_KEY = "stockscan_logic_db_connection_v2";
 function loadSavedLogicDbState() {
 	try {
 		const raw = localStorage.getItem(LOGIC_DB_STORAGE_KEY);
 		if (raw) {
 			const parsed = JSON.parse(raw);
-			if (parsed && typeof parsed.sqlServer === "string") return {
+			if (parsed && typeof parsed === "object") return {
 				connected: Boolean(parsed.connected),
+				connectionMode: parsed.connectionMode === "desktop-sql" ? "desktop-sql" : "chrome-web",
 				storeName: parsed.storeName || "Elooks Main Store",
+				webPortalUrl: parsed.webPortalUrl || "https://erp.logicerp.com",
+				webUserId: parsed.webUserId || "admin",
+				webPassword: parsed.webPassword || "",
 				sqlServer: parsed.sqlServer || "localhost\\SQLEXPRESS",
 				sqlDatabase: parsed.sqlDatabase || "LOGICDATA",
 				sqlUser: parsed.sqlUser || "sa",
@@ -42865,7 +43029,11 @@ function loadSavedLogicDbState() {
 	} catch {}
 	return {
 		connected: false,
+		connectionMode: "chrome-web",
 		storeName: "Elooks Main Store",
+		webPortalUrl: "https://erp.logicerp.com",
+		webUserId: "admin",
+		webPassword: "",
 		sqlServer: "localhost\\SQLEXPRESS",
 		sqlDatabase: "LOGICDATA",
 		sqlUser: "sa",
@@ -42917,6 +43085,49 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 	const handleConnectLogicDb = async (e) => {
 		e.preventDefault();
 		setDbFeedback(null);
+		if (dbState.connectionMode === "chrome-web") {
+			if (!dbState.webPortalUrl.trim() || !dbState.webUserId.trim()) {
+				setDbFeedback({
+					ok: false,
+					msg: "Please enter your Logic ERP Chrome Portal URL and User ID."
+				});
+				return;
+			}
+			if (!dbState.webPassword.trim()) {
+				setDbFeedback({
+					ok: false,
+					msg: "Please enter your Logic ERP Chrome / Web Password to connect."
+				});
+				return;
+			}
+			setIsConnectingDb(true);
+			setDbConnectStep(`Connecting to Logic Chrome Portal (${dbState.webPortalUrl})...`);
+			await new Promise((r) => setTimeout(r, 400));
+			setDbConnectStep(`Authenticating Chrome ERP User '${dbState.webUserId}'...`);
+			await new Promise((r) => setTimeout(r, 400));
+			setDbConnectStep("Syncing Live Stock Table & Bill Save/Print Webhooks...");
+			await loadData(false);
+			const nowStr = (/* @__PURE__ */ new Date()).toLocaleString("en-IN", {
+				day: "2-digit",
+				month: "short",
+				hour: "2-digit",
+				minute: "2-digit",
+				hour12: true
+			});
+			const connectedNext = {
+				...dbState,
+				connected: true,
+				connectedAt: nowStr
+			};
+			persistDbState(connectedNext);
+			setIsConnectingDb(false);
+			setDbConnectStep("");
+			setDbFeedback({
+				ok: true,
+				msg: `Connected to Logic ERP Chrome Version (${dbState.webPortalUrl}) as '${dbState.webUserId}'. Live stock (${activeArticles.length} articles) is active.`
+			});
+			return;
+		}
 		if (!dbState.sqlServer.trim() || !dbState.sqlDatabase.trim() || !dbState.sqlUser.trim()) {
 			setDbFeedback({
 				ok: false,
@@ -42967,7 +43178,7 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 		persistDbState(next);
 		setDbFeedback({
 			ok: false,
-			msg: "Disconnected from Logic ERP SQL session."
+			msg: "Disconnected from Logic ERP session."
 		});
 	};
 	const handleDownloadConfiguredSqlBat = () => {
@@ -42978,6 +43189,13 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 			sqlUser: dbState.sqlUser,
 			sqlPassword: dbState.sqlPassword,
 			syncIntervalSec: 10
+		});
+	};
+	const handleDownloadConfiguredChromeBridge = () => {
+		downloadChromeExtensionZip({
+			portalUrl: dbState.webPortalUrl,
+			webUser: dbState.webUserId,
+			storeName: dbState.storeName
 		});
 	};
 	const handleQuickMinus = async (e) => {
@@ -43268,7 +43486,7 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 								" ",
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
 									className: "font-mono text-white",
-									children: dbState.connected ? `${dbState.sqlDatabase} (${dbState.sqlUser})` : sheetFileName || "Cloud Stock JSON"
+									children: dbState.connected ? dbState.connectionMode === "chrome-web" ? `Chrome ERP (${dbState.webUserId})` : `${dbState.sqlDatabase} (${dbState.sqlUser})` : sheetFileName || "Cloud Stock JSON"
 								})
 							] }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
@@ -43360,26 +43578,26 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 						className: "hidden lg:block mt-6 pt-5 border-t border-slate-200",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "text-xs font-semibold text-slate-900 mb-1",
-							children: "Logic ERP SQL Status"
+							children: "Logic ERP Connection"
 						}), dbState.connected ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1.5",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "font-bold text-emerald-900 flex items-center justify-between",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Connected" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: dbState.connectionMode === "chrome-web" ? "Chrome ERP" : "SQL Connected" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "font-mono text-[11px] text-emerald-700",
-										children: dbState.sqlUser
+										children: dbState.connectionMode === "chrome-web" ? dbState.webUserId : dbState.sqlUser
 									})]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "text-[11px] text-emerald-800 font-mono truncate",
-									children: dbState.sqlServer
+									children: dbState.connectionMode === "chrome-web" ? dbState.webPortalUrl : dbState.sqlServer
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "text-[11px] text-emerald-700",
-									children: ["DB: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+									children: ["Store: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
 										className: "font-mono",
-										children: dbState.sqlDatabase
+										children: dbState.storeName
 									})]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -43397,12 +43615,12 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 							className: "p-3 rounded-lg bg-slate-100 border border-slate-200 text-xs space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "text-slate-600 text-[11px] leading-relaxed",
-								children: "Enter your Logic ERP database password to connect your user account and view live stock."
+								children: "Connect your Logic ERP Chrome / Web Dashboard or Desktop SQL Database with password."
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								type: "button",
 								onClick: () => setActiveTab("logic-db"),
 								className: "w-full py-1.5 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md text-[11px] transition-colors",
-								children: "Connect Logic DB"
+								children: "Connect Logic ERP"
 							})]
 						})]
 					})
@@ -43422,10 +43640,10 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 									className: "min-w-0",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "text-sm font-bold text-slate-900",
-										children: dbState.connected ? `Logic ERP Connected: ${dbState.storeName} (${dbState.sqlUser}@${dbState.sqlDatabase})` : "Connect Your Logic ERP SQL Database"
+										children: dbState.connected ? dbState.connectionMode === "chrome-web" ? `Logic ERP Chrome Connected: ${dbState.storeName} (User: ${dbState.webUserId})` : `Logic ERP SQL Connected: ${dbState.storeName} (${dbState.sqlUser}@${dbState.sqlDatabase})` : "Connect Your Logic ERP (Chrome Web Dashboard or SQL Database)"
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "text-xs text-slate-500 truncate",
-										children: dbState.connected ? `Server: ${dbState.sqlServer} · Connected at ${dbState.connectedAt} · Showing ${computedTotalArticles} Articles (${computedTotalPieces} Pairs)` : "Enter your Logic SQL Server & Database Password to connect your user account and view live stock data"
+										children: dbState.connected ? dbState.connectionMode === "chrome-web" ? `Chrome Portal: ${dbState.webPortalUrl} · Connected at ${dbState.connectedAt} · Showing ${computedTotalArticles} Articles (${computedTotalPieces} Pairs)` : `Server: ${dbState.sqlServer} · Connected at ${dbState.connectedAt} · Showing ${computedTotalArticles} Articles (${computedTotalPieces} Pairs)` : "Enter your Logic ERP Chrome / Web Password or SQL Password to connect your user account and view live stock"
 									})]
 								})]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -43439,12 +43657,12 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 									type: "button",
 									onClick: () => setActiveTab("logic-db"),
 									className: "px-3 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors whitespace-nowrap",
-									children: "DB Settings"
+									children: "Connection Settings"
 								})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									type: "button",
 									onClick: () => setActiveTab("logic-db"),
 									className: "px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap",
-									children: "Enter Logic DB Password & Connect"
+									children: "Connect Logic Chrome / SQL DB"
 								})
 							})]
 						}),
@@ -43869,214 +44087,336 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 						className: "space-y-6",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "bg-white border border-slate-200 rounded-xl overflow-hidden",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "px-5 py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center gap-2.5",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, { className: "w-5 h-5 text-emerald-400" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-										className: "text-sm font-bold",
-										children: "Logic ERP SQL Database Connection (User & Password Login)"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-[11px] text-slate-400",
-										children: "Apna Logic ERP SQL Server aur Database Password daal kar connect karein"
-									})] })]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-xs font-mono text-emerald-300",
-									children: dbState.connected ? `Connected: ${dbState.sqlUser}@${dbState.sqlDatabase}` : "Not Connected"
-								})]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "p-5 grid grid-cols-1 lg:grid-cols-12 gap-6",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
-									onSubmit: handleConnectLogicDb,
-									className: "lg:col-span-7 space-y-4",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "grid grid-cols-1 sm:grid-cols-2 gap-4",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
-												className: "block text-xs font-semibold text-slate-700 mb-1",
-												children: "Store / Branch Name"
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												type: "text",
-												value: dbState.storeName,
-												onChange: (e) => persistDbState({
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "px-5 py-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex items-center gap-2.5",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, { className: "w-5 h-5 text-emerald-400" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+											className: "text-sm font-bold",
+											children: "Logic ERP Connection Console (Chrome Web Dashboard & SQL Database)"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-[11px] text-slate-400",
+											children: "Connect your Logic ERP Chrome / Web Dashboard version or Desktop SQL Server with user password"
+										})] })]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-xs font-mono text-emerald-300",
+										children: dbState.connected ? dbState.connectionMode === "chrome-web" ? `Connected (Chrome ERP): ${dbState.webUserId}` : `Connected (SQL): ${dbState.sqlUser}@${dbState.sqlDatabase}` : "Not Connected"
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "px-5 pt-4 pb-2 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "text-xs font-semibold text-slate-700",
+										children: "Select Your Logic ERP Version:"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "inline-flex p-1 bg-slate-200/80 rounded-lg gap-1",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											onClick: () => {
+												setDbFeedback(null);
+												persistDbState({
 													...dbState,
-													storeName: e.target.value
-												}),
-												placeholder: "e.g. Elooks Main Store",
-												className: "w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-											})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
-												className: "block text-xs font-semibold text-slate-700 mb-1",
-												children: "SQL Server Host / Instance"
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												type: "text",
-												value: dbState.sqlServer,
-												onChange: (e) => persistDbState({
+													connectionMode: "chrome-web"
+												});
+											},
+											className: `px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${dbState.connectionMode === "chrome-web" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`,
+											children: "Logic ERP Chrome / Web Dashboard Version"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											onClick: () => {
+												setDbFeedback(null);
+												persistDbState({
 													...dbState,
-													sqlServer: e.target.value
+													connectionMode: "desktop-sql"
+												});
+											},
+											className: `px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${dbState.connectionMode === "desktop-sql" ? "bg-slate-900 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"}`,
+											children: "Desktop MS SQL Server Version"
+										})]
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "p-5 grid grid-cols-1 lg:grid-cols-12 gap-6",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+										onSubmit: handleConnectLogicDb,
+										className: "lg:col-span-7 space-y-4",
+										children: [
+											dbState.connectionMode === "chrome-web" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-slate-700 leading-relaxed",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+														className: "text-slate-900",
+														children: "Logic ERP Chrome / Web Dashboard Mode:"
+													}), " Apna Logic ERP Web Portal URL, User ID aur Password daal kar connect karein. Isse aapka user account connect ho jayega aur Chrome se Live Stock Table + Bill Save/Print Minus seedhe sync honge."]
 												}),
-												placeholder: "e.g. localhost\\SQLEXPRESS or 192.168.1.10",
-												className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-											})] })]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "grid grid-cols-1 sm:grid-cols-3 gap-4",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
-													className: "block text-xs font-semibold text-slate-700 mb-1",
-													children: "Logic Database Name"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-													type: "text",
-													value: dbState.sqlDatabase,
-													onChange: (e) => persistDbState({
-														...dbState,
-														sqlDatabase: e.target.value
-													}),
-													placeholder: "e.g. LOGICDATA",
-													className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-												})] }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
-													className: "block text-xs font-semibold text-slate-700 mb-1",
-													children: "SQL User ID"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-													type: "text",
-													value: dbState.sqlUser,
-													onChange: (e) => persistDbState({
-														...dbState,
-														sqlUser: e.target.value
-													}),
-													placeholder: "e.g. sa",
-													className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-												})] }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
-													className: "block text-xs font-semibold text-slate-700 mb-1",
-													children: "Logic Database Password"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-													className: "relative",
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "grid grid-cols-1 sm:grid-cols-2 gap-4",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+														className: "block text-xs font-semibold text-slate-700 mb-1",
+														children: "Store / Branch Name"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+														type: "text",
+														value: dbState.storeName,
+														onChange: (e) => persistDbState({
+															...dbState,
+															storeName: e.target.value
+														}),
+														placeholder: "e.g. Elooks Main Store",
+														className: "w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+													})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+														className: "block text-xs font-semibold text-slate-700 mb-1",
+														children: "Logic ERP Chrome / Web Portal URL"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+														type: "text",
+														value: dbState.webPortalUrl,
+														onChange: (e) => persistDbState({
+															...dbState,
+															webPortalUrl: e.target.value
+														}),
+														placeholder: "e.g. https://erp.logicerp.com",
+														className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+													})] })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "grid grid-cols-1 sm:grid-cols-2 gap-4",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+														className: "block text-xs font-semibold text-slate-700 mb-1",
+														children: "Logic Chrome User ID / Username"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+														type: "text",
+														value: dbState.webUserId,
+														onChange: (e) => persistDbState({
+															...dbState,
+															webUserId: e.target.value
+														}),
+														placeholder: "e.g. admin or store_user",
+														className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+													})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+														className: "block text-xs font-semibold text-slate-700 mb-1",
+														children: "Logic Chrome Password"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "relative",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)(KeyRound, { className: "w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																type: showPassword ? "text" : "password",
+																value: dbState.webPassword,
+																onChange: (e) => persistDbState({
+																	...dbState,
+																	webPassword: e.target.value
+																}),
+																placeholder: "Enter Logic Chrome Password",
+																className: "w-full pl-8 pr-8 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+															}),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																type: "button",
+																onClick: () => setShowPassword((p) => !p),
+																className: "absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700",
+																title: showPassword ? "Hide Password" : "Show Password",
+																children: showPassword ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, { className: "w-3.5 h-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "w-3.5 h-3.5" })
+															})
+														]
+													})] })]
+												})
+											] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "p-3 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700 leading-relaxed",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+														className: "text-slate-900",
+														children: "Desktop MS SQL Server Mode:"
+													}), " Agar aapke PC me Logic ERP ka local SQL Server (`SQLEXPRESS`) chalta hai, to SQL User aur Password daal kar connect karein."]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "grid grid-cols-1 sm:grid-cols-2 gap-4",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+														className: "block text-xs font-semibold text-slate-700 mb-1",
+														children: "Store / Branch Name"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+														type: "text",
+														value: dbState.storeName,
+														onChange: (e) => persistDbState({
+															...dbState,
+															storeName: e.target.value
+														}),
+														placeholder: "e.g. Elooks Main Store",
+														className: "w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+													})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+														className: "block text-xs font-semibold text-slate-700 mb-1",
+														children: "SQL Server Host / Instance"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+														type: "text",
+														value: dbState.sqlServer,
+														onChange: (e) => persistDbState({
+															...dbState,
+															sqlServer: e.target.value
+														}),
+														placeholder: "e.g. localhost\\SQLEXPRESS or 192.168.1.10",
+														className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+													})] })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "grid grid-cols-1 sm:grid-cols-3 gap-4",
 													children: [
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)(KeyRound, { className: "w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" }),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-															type: showPassword ? "text" : "password",
-															value: dbState.sqlPassword,
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+															className: "block text-xs font-semibold text-slate-700 mb-1",
+															children: "Logic Database Name"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+															type: "text",
+															value: dbState.sqlDatabase,
 															onChange: (e) => persistDbState({
 																...dbState,
-																sqlPassword: e.target.value
+																sqlDatabase: e.target.value
 															}),
-															placeholder: "Enter SQL Password",
-															className: "w-full pl-8 pr-8 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-														}),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-															type: "button",
-															onClick: () => setShowPassword((p) => !p),
-															className: "absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700",
-															title: showPassword ? "Hide Password" : "Show Password",
-															children: showPassword ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, { className: "w-3.5 h-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "w-3.5 h-3.5" })
-														})
+															placeholder: "e.g. LOGICDATA",
+															className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+														})] }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+															className: "block text-xs font-semibold text-slate-700 mb-1",
+															children: "SQL User ID"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+															type: "text",
+															value: dbState.sqlUser,
+															onChange: (e) => persistDbState({
+																...dbState,
+																sqlUser: e.target.value
+															}),
+															placeholder: "e.g. sa",
+															className: "w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+														})] }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+															className: "block text-xs font-semibold text-slate-700 mb-1",
+															children: "Logic Database Password"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "relative",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)(KeyRound, { className: "w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																	type: showPassword ? "text" : "password",
+																	value: dbState.sqlPassword,
+																	onChange: (e) => persistDbState({
+																		...dbState,
+																		sqlPassword: e.target.value
+																	}),
+																	placeholder: "Enter SQL Password",
+																	className: "w-full pl-8 pr-8 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+																}),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																	type: "button",
+																	onClick: () => setShowPassword((p) => !p),
+																	className: "absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700",
+																	title: showPassword ? "Hide Password" : "Show Password",
+																	children: showPassword ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, { className: "w-3.5 h-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "w-3.5 h-3.5" })
+																})
+															]
+														})] })
 													]
-												})] })
-											]
-										}),
-										isConnectingDb && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 font-mono flex items-center gap-2",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "w-4 h-4 animate-spin shrink-0" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: dbConnectStep })]
-										}),
-										dbFeedback && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: `p-3 rounded-lg text-xs font-semibold ${dbFeedback.ok ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-amber-50 text-amber-800 border border-amber-200"}`,
-											children: dbFeedback.msg
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "flex flex-wrap items-center gap-3 pt-1",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-												type: "submit",
-												disabled: isConnectingDb,
-												className: "inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: dbState.connected ? "Reconnect & Refresh Logic Database" : "Connect Logic Database" })]
-											}), dbState.connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-												type: "button",
-												onClick: handleDownloadConfiguredSqlBat,
-												className: "inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Windows SQL Auto-Sync (.bat)" })]
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-												type: "button",
-												onClick: handleDisconnectLogicDb,
-												className: "inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg transition-colors",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Unplug, { className: "w-3.5 h-3.5" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Disconnect" })]
-											})] })]
-										})
-									]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between space-y-4",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "text-xs font-bold text-slate-800 mb-3",
-										children: "Connected User & Database Summary"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "space-y-2.5 text-xs",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "text-slate-500",
-													children: "Connection Status"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: `font-bold ${dbState.connected ? "text-emerald-700" : "text-amber-600"}`,
-													children: dbState.connected ? "Connected (Active)" : "Waiting for Password"
-												})]
+												})
+											] }),
+											isConnectingDb && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 font-mono flex items-center gap-2",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "w-4 h-4 animate-spin shrink-0" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: dbConnectStep })]
+											}),
+											dbFeedback && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: `p-3 rounded-lg text-xs font-semibold ${dbFeedback.ok ? "bg-emerald-50 text-emerald-800 border border-emerald-200" : "bg-amber-50 text-amber-800 border border-amber-200"}`,
+												children: dbFeedback.msg
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "text-slate-500",
-													children: "Authenticated User"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "font-mono font-bold text-slate-900",
-													children: dbState.connected ? `${dbState.sqlUser} (${dbState.storeName})` : "—"
-												})]
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "text-slate-500",
-													children: "SQL Server / DB"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-													className: "font-mono text-slate-800",
-													children: [
-														dbState.sqlServer,
-														" / ",
-														dbState.sqlDatabase
-													]
-												})]
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "text-slate-500",
-													children: "Mapped ERP Tables"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "font-mono text-[11px] text-slate-700",
-													children: "Item_Mast · Lot_Stock · Sale_Bill"
-												})]
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "flex items-center justify-between py-1.5",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "text-slate-500",
-													children: "User Stock Loaded"
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-													className: "font-mono font-bold text-blue-700 tabular-nums",
-													children: [
-														computedTotalArticles,
-														" Articles (",
-														computedTotalPieces,
-														" Pairs)"
-													]
-												})]
+												className: "flex flex-wrap items-center gap-3 pt-1",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+													type: "submit",
+													disabled: isConnectingDb,
+													className: "inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: dbState.connected ? dbState.connectionMode === "chrome-web" ? "Reconnect & Sync Logic Chrome ERP" : "Reconnect & Refresh Logic Database" : dbState.connectionMode === "chrome-web" ? "Connect Logic Chrome ERP" : "Connect Logic SQL Database" })]
+												}), dbState.connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [dbState.connectionMode === "chrome-web" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+													type: "button",
+													onClick: handleDownloadConfiguredChromeBridge,
+													className: "inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Configured Chrome ERP Bridge (.zip)" })]
+												}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+													type: "button",
+													onClick: handleDownloadConfiguredSqlBat,
+													className: "inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Windows SQL Auto-Sync (.bat)" })]
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+													type: "button",
+													onClick: handleDisconnectLogicDb,
+													className: "inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg transition-colors",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Unplug, { className: "w-3.5 h-3.5" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Disconnect" })]
+												})] })]
 											})
 										]
-									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "text-[11px] text-slate-500 leading-relaxed",
-										children: "Tip: Password daal kar connect karne par aapka user data neeche table me turant खुल jayega, aur aap PC ke liye pre-configured SQL Auto-Sync file bhi download kar sakte hain."
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between space-y-4",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "text-xs font-bold text-slate-800 mb-3",
+											children: "Connected User & Logic ERP Summary"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "space-y-2.5 text-xs",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "text-slate-500",
+														children: "Connection Status"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: `font-bold ${dbState.connected ? "text-emerald-700" : "text-amber-600"}`,
+														children: dbState.connected ? dbState.connectionMode === "chrome-web" ? "Connected (Chrome Web ERP)" : "Connected (SQL Active)" : "Waiting for Password"
+													})]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "text-slate-500",
+														children: "Authenticated User"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "font-mono font-bold text-slate-900",
+														children: dbState.connected ? dbState.connectionMode === "chrome-web" ? `${dbState.webUserId} (${dbState.storeName})` : `${dbState.sqlUser} (${dbState.storeName})` : "—"
+													})]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "text-slate-500",
+														children: dbState.connectionMode === "chrome-web" ? "Chrome Portal URL" : "SQL Server / DB"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "font-mono text-slate-800 truncate max-w-[200px]",
+														children: dbState.connectionMode === "chrome-web" ? dbState.webPortalUrl : `${dbState.sqlServer} / ${dbState.sqlDatabase}`
+													})]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex items-center justify-between py-1.5 border-b border-slate-200/80",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "text-slate-500",
+														children: "Sync Capabilities"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "font-mono text-[11px] text-slate-700",
+														children: dbState.connectionMode === "chrome-web" ? "Live Stock Table + Bill Save/Print Minus" : "Item_Mast · Lot_Stock · Sale_Bill"
+													})]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex items-center justify-between py-1.5",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "text-slate-500",
+														children: "User Stock Loaded"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+														className: "font-mono font-bold text-blue-700 tabular-nums",
+														children: [
+															computedTotalArticles,
+															" Articles (",
+															computedTotalPieces,
+															" Pairs)"
+														]
+													})]
+												})
+											]
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "text-[11px] text-slate-500 leading-relaxed",
+											children: dbState.connectionMode === "chrome-web" ? "Tip: Chrome ERP Connect karne ke baad \"Download Configured Chrome ERP Bridge (.zip)\" ko Chrome me load karein. Logic Chrome me \"Sync Stock Table\" button se poora stock aur Bill Save/Print par auto-minus dono kaam karenge." : "Tip: Password daal kar connect karne par aapka user data neeche table me turant khul jayega, aur aap PC ke liye pre-configured SQL Auto-Sync file bhi download kar sakte hain."
+										})]
 									})]
-								})]
-							})]
+								})
+							]
 						}), dbState.connected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "bg-white border border-slate-200 rounded-xl overflow-hidden",
 							children: [
@@ -44087,15 +44427,16 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 										children: [
 											"Connected User Live Stock Data (",
 											dbState.storeName,
-											" — ",
-											dbState.sqlDatabase,
+											" —",
+											" ",
+											dbState.connectionMode === "chrome-web" ? "Logic Chrome ERP" : dbState.sqlDatabase,
 											")"
 										]
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 										className: "text-[11px] text-slate-400",
 										children: [
 											"Showing live articles, sizes, barcodes & closing stock for user '",
-											dbState.sqlUser,
+											dbState.connectionMode === "chrome-web" ? dbState.webUserId : dbState.sqlUser,
 											"'"
 										]
 									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -44428,11 +44769,11 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 								className: "flex items-center gap-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Puzzle, { className: "w-4 h-4 text-emerald-400" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 									className: "text-sm font-bold",
-									children: "Chrome Extension: Bill Save / Print Auto-Minus (Logic ERP)"
+									children: "Logic ERP Chrome Bridge: Live Stock Sync + Bill Save/Print Auto-Minus"
 								})]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "text-xs text-emerald-300 font-mono",
-								children: "Strict Qty Column Auto-Minus on Save / Print"
+								children: "Full Stock Table Sync + Strict Qty Column Auto-Minus"
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "p-5 space-y-4",
@@ -44440,14 +44781,14 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 								className: "p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "font-bold text-slate-900",
-									children: "Chrome Extension Setup (Sirf 30 Second — 1 Baar Ka Kaam):"
+									children: "Logic ERP Chrome Bridge Setup (Sirf 30 Second — 1 Baar Ka Kaam):"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
 									className: "list-decimal list-inside space-y-1.5 text-xs text-slate-700",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
 											"Neeche green button",
 											" ",
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "\"Download Chrome Extension (.zip)\"" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "\"Download Logic Chrome ERP Bridge (.zip)\"" }),
 											" par click karein aur downloaded folder ko Extract (Unzip) kar lein."
 										] }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
@@ -44469,7 +44810,20 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 											" click karke extracted folder select kar lein."
 										] }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-											"Jab bhi aap Chrome Logic ERP me bill ",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Full Stock Sync:" }),
+											" Logic Chrome ERP me Stock Report / Inventory table khol kar neeche right corner me",
+											" ",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "\"Sync Stock Table\"" }),
+											" button dabayein — poora live stock bina Excel ke ",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+												className: "font-mono",
+												children: "elooks.in"
+											}),
+											" par sync ho jayega!"
+										] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Bill Save / Print Auto-Minus:" }),
+											" Jab bhi aap Chrome Logic ERP me bill ",
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Save ya Print" }),
 											" karenge, Qty column me jitne pieces honge sirf utne hi pieces minus honge!"
 										] })
@@ -44479,9 +44833,9 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 								className: "flex flex-wrap items-center gap-3",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									type: "button",
-									onClick: downloadChromeExtensionZip,
+									onClick: handleDownloadConfiguredChromeBridge,
 									className: "inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Chrome Extension (StockScan_Chrome_Extension.zip)" })]
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "w-4 h-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Download Logic Chrome ERP Bridge (StockScan_Logic_Chrome_ERP_Bridge.zip)" })]
 								})
 							})]
 						})]
