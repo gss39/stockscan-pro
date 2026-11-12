@@ -1,0 +1,731 @@
+{
+  "totalVisits": 119,
+  "visitors": [
+    {
+      "visitorId": "USR-3I29SI",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "11 Nov, 02:18 pm",
+      "lastSeen": "11 Nov, 02:28 pm",
+      "lastSeenTs": 1794407285588,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-1QGK9X",
+      "device": "Linux · Chrome",
+      "firstSeen": "10 Nov, 12:07 am",
+      "lastSeen": "10 Nov, 12:07 am",
+      "lastSeenTs": 1794269259639,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-9LRAVD",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 04:05 pm",
+      "lastSeen": "09 Nov, 04:05 pm",
+      "lastSeenTs": 1794269109393,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-1TAYAN",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 04:13 am",
+      "lastSeen": "09 Nov, 04:13 am",
+      "lastSeenTs": 1794226389193,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-IZZ21Z",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 12:11 pm",
+      "lastSeen": "09 Nov, 12:11 pm",
+      "lastSeenTs": 1794226313575,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-0RB1RK",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 11:31 am",
+      "lastSeen": "09 Nov, 11:31 am",
+      "lastSeenTs": 1794223886089,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-WX8HRU",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 10:31 am",
+      "lastSeen": "09 Nov, 10:31 am",
+      "lastSeenTs": 1794220303434,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-U0VWDF",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 08:05 am",
+      "lastSeen": "09 Nov, 08:05 am",
+      "lastSeenTs": 1794211524502,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-6DF0KH",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 07:58 am",
+      "lastSeen": "09 Nov, 07:58 am",
+      "lastSeenTs": 1794211088707,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-8ZX391",
+      "device": "Linux · Chrome",
+      "firstSeen": "09 Nov, 07:54 am",
+      "lastSeen": "09 Nov, 07:54 am",
+      "lastSeenTs": 1794210893561,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-JNQ29W",
+      "device": "Android Phone · Chrome",
+      "firstSeen": "09 Nov, 01:22 pm",
+      "lastSeen": "09 Nov, 01:27 pm",
+      "lastSeenTs": 1794211076047,
+      "visitsCount": 4
+    },
+    {
+      "visitorId": "USR-UYG4D5",
+      "device": "Android Phone · Chrome",
+      "firstSeen": "09 Nov, 11:44 am",
+      "lastSeen": "09 Nov, 03:23 pm",
+      "lastSeenTs": 1794217991029,
+      "visitsCount": 16
+    },
+    {
+      "visitorId": "USR-NLQXFL",
+      "device": "Windows PC · Edge",
+      "firstSeen": "09 Nov, 05:44 am",
+      "lastSeen": "09 Nov, 05:44 am",
+      "lastSeenTs": 1794203092899,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-B9YY16",
+      "device": "Device · Chrome",
+      "firstSeen": "08 Nov, 09:43 pm",
+      "lastSeen": "08 Nov, 09:43 pm",
+      "lastSeenTs": 1794203001534,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-HQC10N",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "09 Nov, 11:13 am",
+      "lastSeen": "09 Nov, 05:39 pm",
+      "lastSeenTs": 1794226180802,
+      "visitsCount": 13
+    },
+    {
+      "visitorId": "USR-6PITPH",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "09 Nov, 08:53 am",
+      "lastSeen": "09 Nov, 08:33 pm",
+      "lastSeenTs": 1794236615452,
+      "visitsCount": 3
+    },
+    {
+      "visitorId": "USR-BJF9QO",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:06 pm",
+      "lastSeen": "08 Nov, 04:06 pm",
+      "lastSeenTs": 1794154005343,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-PNTBS9",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:06 pm",
+      "lastSeen": "08 Nov, 04:06 pm",
+      "lastSeenTs": 1794153989947,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-JF4HTO",
+      "device": "Mac · Safari",
+      "firstSeen": "08 Nov, 04:04 pm",
+      "lastSeen": "08 Nov, 04:04 pm",
+      "lastSeenTs": 1794153855532,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-MLM74K",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "08 Nov, 08:58 pm",
+      "lastSeen": "10 Nov, 07:53 am",
+      "lastSeenTs": 1794277404072,
+      "visitsCount": 4
+    },
+    {
+      "visitorId": "USR-PFYY0V",
+      "device": "Mac · Safari",
+      "firstSeen": "08 Nov, 03:25 pm",
+      "lastSeen": "08 Nov, 03:25 pm",
+      "lastSeenTs": 1794151539505,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-ZDVP9Q",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 01:28 pm",
+      "lastSeen": "08 Nov, 01:28 pm",
+      "lastSeenTs": 1794144523285,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-FDWN2E",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 01:26 pm",
+      "lastSeen": "08 Nov, 01:26 pm",
+      "lastSeenTs": 1794144402357,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-U33WB2",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 01:26 pm",
+      "lastSeen": "08 Nov, 01:26 pm",
+      "lastSeenTs": 1794144389023,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-F9H8JJ",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 12:35 pm",
+      "lastSeen": "08 Nov, 12:35 pm",
+      "lastSeenTs": 1794141359478,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-FDB5V1",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 12:35 pm",
+      "lastSeen": "08 Nov, 12:35 pm",
+      "lastSeenTs": 1794141347951,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-546NEW",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 12:33 pm",
+      "lastSeen": "08 Nov, 12:33 pm",
+      "lastSeenTs": 1794141213063,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-98SNG9",
+      "device": "Mac · Safari",
+      "firstSeen": "08 Nov, 12:30 pm",
+      "lastSeen": "08 Nov, 12:30 pm",
+      "lastSeenTs": 1794141057864,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-SFIWPL",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 12:28 pm",
+      "lastSeen": "08 Nov, 12:28 pm",
+      "lastSeenTs": 1794140886657,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-BA9TZG",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 12:27 pm",
+      "lastSeen": "08 Nov, 12:27 pm",
+      "lastSeenTs": 1794140869902,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-W4ZBCX",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:38 am",
+      "lastSeen": "08 Nov, 11:38 am",
+      "lastSeenTs": 1794137920024,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-J4ZR4O",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:36 am",
+      "lastSeen": "08 Nov, 11:36 am",
+      "lastSeenTs": 1794137798638,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-VV0OLX",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:29 am",
+      "lastSeen": "08 Nov, 11:29 am",
+      "lastSeenTs": 1794137385068,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-JNBZD4",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:29 am",
+      "lastSeen": "08 Nov, 11:29 am",
+      "lastSeenTs": 1794137375121,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-YKYLUV",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:29 am",
+      "lastSeen": "08 Nov, 11:29 am",
+      "lastSeenTs": 1794137371518,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-TYNSIN",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:29 am",
+      "lastSeen": "08 Nov, 11:29 am",
+      "lastSeenTs": 1794137365719,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-15G1ND",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 11:29 am",
+      "lastSeen": "08 Nov, 11:29 am",
+      "lastSeenTs": 1794137361896,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-Z2ND4P",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 08:37 am",
+      "lastSeen": "08 Nov, 08:37 am",
+      "lastSeenTs": 1794127045073,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-SOSH9H",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 08:29 am",
+      "lastSeen": "08 Nov, 08:29 am",
+      "lastSeenTs": 1794126541301,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-COH4LO",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:53 am",
+      "lastSeen": "08 Nov, 07:53 am",
+      "lastSeenTs": 1794124433438,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-ITM0Z9",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:53 am",
+      "lastSeen": "08 Nov, 07:53 am",
+      "lastSeenTs": 1794124424426,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-U87G40",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:53 am",
+      "lastSeen": "08 Nov, 07:53 am",
+      "lastSeenTs": 1794124402478,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-L9IBEB",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:02 am",
+      "lastSeen": "08 Nov, 07:02 am",
+      "lastSeenTs": 1794121368111,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-ZWH556",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:02 am",
+      "lastSeen": "08 Nov, 07:02 am",
+      "lastSeenTs": 1794121355814,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-CB3A4D",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:01 am",
+      "lastSeen": "08 Nov, 07:01 am",
+      "lastSeenTs": 1794121318700,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-DLAKK9",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 07:01 am",
+      "lastSeen": "08 Nov, 07:01 am",
+      "lastSeenTs": 1794121264750,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-B6PNMQ",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 06:59 am",
+      "lastSeen": "08 Nov, 06:59 am",
+      "lastSeenTs": 1794121143463,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-8ERIRS",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:53 am",
+      "lastSeen": "08 Nov, 04:53 am",
+      "lastSeenTs": 1794113588574,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-A1Q5W5",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:50 am",
+      "lastSeen": "08 Nov, 04:50 am",
+      "lastSeenTs": 1794113454120,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-3ZY7Q7",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:48 am",
+      "lastSeen": "08 Nov, 04:48 am",
+      "lastSeenTs": 1794113319364,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-NZ231L",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:46 am",
+      "lastSeen": "08 Nov, 04:46 am",
+      "lastSeenTs": 1794113176028,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-6YEWC7",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:45 am",
+      "lastSeen": "08 Nov, 04:45 am",
+      "lastSeenTs": 1794113134804,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-F0XPZ5",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:45 am",
+      "lastSeen": "08 Nov, 04:45 am",
+      "lastSeenTs": 1794113125434,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-STEJ6C",
+      "device": "Android Phone · Chrome",
+      "firstSeen": "08 Nov, 10:15 am",
+      "lastSeen": "09 Nov, 04:10 pm",
+      "lastSeenTs": 1794220856937,
+      "visitsCount": 13
+    },
+    {
+      "visitorId": "USR-35N973",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:44 am",
+      "lastSeen": "08 Nov, 04:44 am",
+      "lastSeenTs": 1794113057399,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-X7O37X",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:44 am",
+      "lastSeen": "08 Nov, 04:44 am",
+      "lastSeenTs": 1794113042781,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-8KQI85",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:43 am",
+      "lastSeen": "08 Nov, 04:43 am",
+      "lastSeenTs": 1794113016030,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-PBQP5R",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:42 am",
+      "lastSeen": "08 Nov, 04:42 am",
+      "lastSeenTs": 1794112965111,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-99EBNV",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:42 am",
+      "lastSeen": "08 Nov, 04:42 am",
+      "lastSeenTs": 1794112954912,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-A6FHAZ",
+      "device": "Android Phone · Chrome",
+      "firstSeen": "08 Nov, 10:12 am",
+      "lastSeen": "08 Nov, 05:57 pm",
+      "lastSeenTs": 1794140873457,
+      "visitsCount": 4
+    },
+    {
+      "visitorId": "USR-70BIIS",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "08 Nov, 10:11 am",
+      "lastSeen": "08 Nov, 10:11 am",
+      "lastSeenTs": 1794112906783,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-LHUI1G",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:23 am",
+      "lastSeen": "08 Nov, 04:23 am",
+      "lastSeenTs": 1794111831623,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-5RGEA5",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:23 am",
+      "lastSeen": "08 Nov, 04:23 am",
+      "lastSeenTs": 1794111821434,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-I7ZB1V",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:23 am",
+      "lastSeen": "08 Nov, 04:23 am",
+      "lastSeenTs": 1794111795020,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-WLLPCU",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:23 am",
+      "lastSeen": "08 Nov, 04:23 am",
+      "lastSeenTs": 1794111784618,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-NW5T6H",
+      "device": "Linux · Chrome",
+      "firstSeen": "08 Nov, 04:22 am",
+      "lastSeen": "08 Nov, 04:22 am",
+      "lastSeenTs": 1794111775252,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-LH1U8C",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "08 Nov, 04:16 am",
+      "lastSeen": "08 Nov, 10:03 am",
+      "lastSeenTs": 1794112400981,
+      "visitsCount": 3
+    }
+  ],
+  "articleSearches": [
+    {
+      "articleCode": "RSL1367 TAN WHITE",
+      "name": "RSL1367 TAN WHITE",
+      "barcode": "8909102236305",
+      "count": 4,
+      "lastSearchedAt": "09 Nov, 04:10 pm",
+      "lastSearchedTs": 1794220856937,
+      "totalStock": 8
+    },
+    {
+      "articleCode": "RMW0309 GRY",
+      "name": "RMW0309 GRY",
+      "barcode": "8909102605521",
+      "count": 2,
+      "lastSearchedAt": "08 Nov, 06:54 pm",
+      "lastSearchedTs": 1794144264946,
+      "totalStock": 8
+    },
+    {
+      "articleCode": "RSO3501B BLK",
+      "name": "RSO3501B BLK",
+      "barcode": "8909102136872",
+      "count": 2,
+      "lastSearchedAt": "09 Nov, 08:33 pm",
+      "lastSearchedTs": 1794236615452,
+      "totalStock": 1
+    },
+    {
+      "articleCode": "RSO4648 WGR",
+      "name": "RSO4648 WGR",
+      "barcode": "8909102459667",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 10:14 am",
+      "lastSearchedTs": 1794113043053,
+      "totalStock": 9
+    },
+    {
+      "articleCode": "RMW0284 GRY",
+      "name": "RMW0284 GRY",
+      "barcode": "8909102319169",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 10:15 am",
+      "lastSearchedTs": 1794113113530,
+      "totalStock": 11
+    },
+    {
+      "articleCode": "RSO4492B BLK",
+      "name": "RSO4492B BLK",
+      "barcode": "8909102494064",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 12:29 pm",
+      "lastSearchedTs": 1794121169658,
+      "totalStock": 7
+    },
+    {
+      "articleCode": "RSO5088 WHT",
+      "name": "RSO5088 WHT",
+      "barcode": "8909102624126",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 12:30 pm",
+      "lastSearchedTs": 1794121234464,
+      "totalStock": 6
+    },
+    {
+      "articleCode": "RSO4652 LIN",
+      "name": "RSO4652 LIN",
+      "barcode": "8909102460335",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 12:31 pm",
+      "lastSearchedTs": 1794121299404,
+      "totalStock": 8
+    },
+    {
+      "articleCode": "RSL1354 WBK",
+      "name": "RSL1354 WBK",
+      "barcode": "8909102184156",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 12:31 pm",
+      "lastSearchedTs": 1794121316504,
+      "totalStock": 10
+    },
+    {
+      "articleCode": "RSL1421 BKW",
+      "name": "RSL1421 BKW",
+      "barcode": "8909102296507",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 04:59 pm",
+      "lastSearchedTs": 1794137354785,
+      "totalStock": 11
+    },
+    {
+      "articleCode": "RSO4495B WGR",
+      "name": "RSO4495B WGR",
+      "barcode": "8909102494224",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 05:06 pm",
+      "lastSearchedTs": 1794137791851,
+      "totalStock": 11
+    },
+    {
+      "articleCode": "RSO4764 DGR",
+      "name": "RSO4764 DGR",
+      "barcode": "8909102526307",
+      "count": 1,
+      "lastSearchedAt": "08 Nov, 05:57 pm",
+      "lastSearchedTs": 1794140873457,
+      "totalStock": 10
+    },
+    {
+      "articleCode": "RSL1423 WHT",
+      "name": "RSL1423 WHT",
+      "barcode": "8909102296613",
+      "count": 1,
+      "lastSearchedAt": "09 Nov, 04:01 pm",
+      "lastSearchedTs": 1794220296316,
+      "totalStock": 3
+    },
+    {
+      "articleCode": "RSL1357 GWE",
+      "name": "RSL1357 GWE",
+      "barcode": "8909102183654",
+      "count": 1,
+      "lastSearchedAt": "09 Nov, 04:01 pm",
+      "lastSearchedTs": 1794220313301,
+      "totalStock": 4
+    },
+    {
+      "articleCode": "RSL1356 WBL",
+      "name": "RSL1356 WBL",
+      "barcode": "8909102183814",
+      "count": 1,
+      "lastSearchedAt": "09 Nov, 04:08 pm",
+      "lastSearchedTs": 1794220716580,
+      "totalStock": 8
+    }
+  ],
+  "issues": [
+    {
+      "id": "iss-1794137602106-pl1f",
+      "type": "not_found",
+      "title": "Article / Barcode Not Found in Stock",
+      "detail": "User searched or scanned \"8909102120703\" which does not exist in the active stock sheet.",
+      "query": "8909102120703",
+      "device": "Android Phone · Chrome",
+      "visitorId": "USR-STEJ6C",
+      "timestamp": "08 Nov, 05:03 pm",
+      "timestampMs": 1794137602106,
+      "occurrences": 1
+    },
+    {
+      "id": "iss-1794121149340-j2tr",
+      "type": "not_found",
+      "title": "Article / Barcode Not Found in Stock",
+      "detail": "User searched or scanned \"6335647905659\" which does not exist in the active stock sheet.",
+      "query": "6335647905659",
+      "device": "Android Phone · Chrome",
+      "visitorId": "USR-STEJ6C",
+      "timestamp": "08 Nov, 12:29 pm",
+      "timestampMs": 1794121149340,
+      "occurrences": 1
+    },
+    {
+      "id": "iss-1794113002102-rty5",
+      "type": "not_found",
+      "title": "Article / Barcode Not Found in Stock",
+      "detail": "User searched or scanned \"8909102183661\" which does not exist in the active stock sheet.",
+      "query": "8909102183661",
+      "device": "Android Phone · Chrome",
+      "visitorId": "USR-A6FHAZ",
+      "timestamp": "08 Nov, 10:13 am",
+      "timestampMs": 1794113002102,
+      "occurrences": 1
+    }
+  ],
+  "updatedAt": 1794407351789,
+  "soldDeductions": [
+    {
+      "id": "deduct-1794407351789-live-test",
+      "articleCode": "RSO3501B BLK",
+      "itemName": "RSO3501B BLK",
+      "size": "08/42",
+      "barcode": "8909102136872",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Logic ERP Bill (Auto-Minus Live Test)",
+      "timestamp": "11 Nov, 02:29 pm",
+      "timestampMs": 1794407351789
+    }
+  ]
+}

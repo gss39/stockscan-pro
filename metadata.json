@@ -1,0 +1,6 @@
+{
+  "name": "StockScan Pro — Barcode & Excel Inventory Checker",
+  "description": "Instant barcode scanner and Excel stock availability checker for sales teams and warehouse staff.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
