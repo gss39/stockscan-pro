@@ -67059,13 +67059,25 @@ function App() {
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "flex items-center gap-1.5 shrink-0",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PWAInstallButton, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							type: "button",
-							onClick: () => excelInputRef.current?.click(),
-							disabled: isSyncing,
-							className: "inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors min-h-[38px] whitespace-nowrap",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileSpreadsheet, { className: "w-3.5 h-3.5" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: isSyncing ? "Updating..." : "Excel Upload" })]
-						})]
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PWAInstallButton, {}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								onClick: () => {
+									window.location.hash = "#/dashboard";
+									setIsDashboardRoute(true);
+								},
+								className: "inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors min-h-[38px] whitespace-nowrap",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Dashboard" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								onClick: () => excelInputRef.current?.click(),
+								disabled: isSyncing,
+								className: "inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors min-h-[38px] whitespace-nowrap",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileSpreadsheet, { className: "w-3.5 h-3.5" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: isSyncing ? "Updating..." : "Excel Upload" })]
+							})
+						]
 					})]
 				})
 			}),

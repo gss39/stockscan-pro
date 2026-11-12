@@ -5,8 +5,8 @@
       "visitorId": "USR-GY7S1E",
       "device": "Windows PC · Chrome",
       "firstSeen": "12 Nov, 04:18 pm",
-      "lastSeen": "12 Nov, 04:23 pm",
-      "lastSeenTs": 1794500606154,
+      "lastSeen": "12 Nov, 04:30 pm",
+      "lastSeenTs": 1794501026435,
       "visitsCount": 1
     },
     {
@@ -721,7 +721,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794500606154,
+  "updatedAt": 1794501026435,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
