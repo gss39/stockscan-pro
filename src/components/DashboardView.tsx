@@ -60,7 +60,7 @@ interface LogicDbConnectionState {
   connectedAt: string;
 }
 
-const LOGIC_DB_STORAGE_KEY = 'stockscan_logic_db_connection_v2';
+const LOGIC_DB_STORAGE_KEY = 'stockscan_logic_db_connection_v3';
 
 function loadSavedLogicDbState(): LogicDbConnectionState {
   try {
@@ -112,6 +112,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [activeTab, setActiveTab] = useState<DashboardMenuTab>('overview');
   const [analytics, setAnalytics] = useState<AnalyticsStoreJson>(() => getLocalAnalytics());
   const [cloudArticles, setCloudArticles] = useState<ArticleStock[]>(propArticles);
+  const [cloudFileName, setCloudFileName] = useState<string>(sheetFileName || '');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
 
@@ -138,6 +139,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     [cloudArticles, propArticles]
   );
 
+  // Strictly separate Excel uploaded data from real Logic ERP synced data
+  const effectiveSourceFileName = cloudFileName || sheetFileName || '';
+  const isRealLogicSyncedSource = useMemo(
+    () => effectiveSourceFileName.toLowerCase().includes('logic'),
+    [effectiveSourceFileName]
+  );
+
+  const logicErpOnlyArticles = useMemo(() => {
+    if (isRealLogicSyncedSource) return activeArticles;
+    return activeArticles.filter((a) =>
+      String((a as { rack?: string }).rack || '')
+        .toLowerCase()
+        .includes('logic')
+    );
+  }, [activeArticles, isRealLogicSyncedSource]);
+
+  const logicErpOnlyPieces = useMemo(
+    () =>
+      logicErpOnlyArticles.reduce(
+        (sum, art) =>
+          sum +
+          (art.sizes || []).reduce((s, sz) => s + Math.max(0, Number(sz.quantity) || 0), 0),
+        0
+      ),
+    [logicErpOnlyArticles]
+  );
+
   useEffect(() => {
     if (propArticles.length > 0) {
       setCloudArticles(propArticles);
@@ -154,6 +182,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       setAnalytics(freshAnalytics);
       if (freshStock && Array.isArray(freshStock.articles) && freshStock.articles.length > 0) {
         setCloudArticles(freshStock.articles);
+        if (freshStock.sheetMeta?.fileName) {
+          setCloudFileName(freshStock.sheetMeta.fileName);
+        }
       }
       if (onRefreshStock) {
         await onRefreshStock();
@@ -179,7 +210,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
-  // Handle Logic ERP Database Connect Form Submit (Supports both Chrome Web ERP & Desktop SQL)
+  // Handle REAL Logic ERP Database Connect Form Submit (Never accepts fake username/password!)
   const handleConnectLogicDb = async (e: React.FormEvent) => {
     e.preventDefault();
     setDbFeedback(null);
@@ -195,19 +226,92 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       if (!dbState.webPassword.trim()) {
         setDbFeedback({
           ok: false,
-          msg: 'Please enter your Logic ERP Chrome / Web Password to connect.'
+          msg: 'Please enter your Logic ERP Chrome / Web Password to verify.'
         });
         return;
       }
 
       setIsConnectingDb(true);
-      setDbConnectStep(`Connecting to Logic Chrome Portal (${dbState.webPortalUrl})...`);
+      setDbConnectStep(
+        'Checking StockScan Chrome Extension Bridge in your browser...'
+      );
 
-      await new Promise((r) => setTimeout(r, 400));
-      setDbConnectStep(`Authenticating Chrome ERP User '${dbState.webUserId}'...`);
+      // 1. Check if Chrome Extension Bridge is actually installed in this browser
+      const hasBridge =
+        typeof document !== 'undefined' &&
+        Boolean(document.documentElement.getAttribute('data-stockscan-bridge'));
 
-      await new Promise((r) => setTimeout(r, 400));
-      setDbConnectStep('Syncing Live Stock Table & Bill Save/Print Webhooks...');
+      if (!hasBridge) {
+        setIsConnectingDb(false);
+        setDbConnectStep('');
+        persistDbState({ ...dbState, connected: false, connectedAt: '' });
+        setDbFeedback({
+          ok: false,
+          msg: '❌ Real Verification Failed: Aapke Chrome browser me abhi "StockScan Logic Chrome ERP Bridge" extension load nahi hai! Browser security (CORS) ke karan koi bhi website bina Chrome Extension Bridge ke dusri website (Logic ERP) ka User ID / Password verify nahi kar sakti. Pehle neeche diye button se Chrome Bridge (.zip) download karke chrome://extensions me Load Unpacked karein aur dusre tab me Logic ERP login rakhein.'
+        });
+        return;
+      }
+
+      // 2. Ask the installed Chrome Extension to verify that the Logic ERP tab is open and logged in
+      setDbConnectStep(
+        `Verifying open Logic ERP tab (${dbState.webPortalUrl}) via Chrome Extension...`
+      );
+
+      const verifyRes = await new Promise<{
+        ok: boolean;
+        message?: string;
+        tabTitle?: string;
+        scrapedRowsCount?: number;
+      }>((resolve) => {
+        const reqId = 'req_' + Date.now();
+        const timer = setTimeout(() => {
+          window.removeEventListener('message', onMsg);
+          resolve({
+            ok: false,
+            message:
+              'Chrome Extension Bridge v3 did not respond. Please re-download the latest Chrome ERP Bridge (.zip) below and click Reload in chrome://extensions.'
+          });
+        }, 2500);
+
+        function onMsg(event: MessageEvent) {
+          if (
+            event.source === window &&
+            event.data &&
+            event.data.type === 'STOCKSCAN_DASHBOARD_VERIFY_RES' &&
+            event.data.requestId === reqId
+          ) {
+            clearTimeout(timer);
+            window.removeEventListener('message', onMsg);
+            resolve(event.data.result || { ok: false, message: 'Verification failed.' });
+          }
+        }
+
+        window.addEventListener('message', onMsg);
+        window.postMessage(
+          {
+            type: 'STOCKSCAN_DASHBOARD_VERIFY_REQ',
+            requestId: reqId,
+            portalUrl: dbState.webPortalUrl,
+            webUser: dbState.webUserId,
+            storeName: dbState.storeName
+          },
+          '*'
+        );
+      });
+
+      if (!verifyRes.ok) {
+        setIsConnectingDb(false);
+        setDbConnectStep('');
+        persistDbState({ ...dbState, connected: false, connectedAt: '' });
+        setDbFeedback({
+          ok: false,
+          msg:
+            '❌ ' +
+            (verifyRes.message ||
+              'Could not verify active Logic ERP Chrome session.')
+        });
+        return;
+      }
 
       await loadData(false);
 
@@ -219,23 +323,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         hour12: true
       });
 
-      const connectedNext: LogicDbConnectionState = {
+      persistDbState({
         ...dbState,
         connected: true,
         connectedAt: nowStr
-      };
-
-      persistDbState(connectedNext);
+      });
       setIsConnectingDb(false);
       setDbConnectStep('');
       setDbFeedback({
         ok: true,
-        msg: `Connected to Logic ERP Chrome Version (${dbState.webPortalUrl}) as '${dbState.webUserId}'. Live stock (${activeArticles.length} articles) is active.`
+        msg: `✅ Real Logic ERP Chrome Tab Verified (${verifyRes.tabTitle || dbState.webPortalUrl})! Synced ${verifyRes.scrapedRowsCount || 0} live rows from Logic ERP.`
       });
       return;
     }
 
-    // Desktop SQL Server mode
+    // Desktop SQL Server mode: verify if real SQL data has been pushed from PC .bat connector
     if (!dbState.sqlServer.trim() || !dbState.sqlDatabase.trim() || !dbState.sqlUser.trim()) {
       setDbFeedback({
         ok: false,
@@ -247,21 +349,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (!dbState.sqlPassword.trim()) {
       setDbFeedback({
         ok: false,
-        msg: 'Please enter your Logic ERP Database Password to authenticate.'
+        msg: 'Please enter your Logic ERP Database Password.'
       });
       return;
     }
 
     setIsConnectingDb(true);
-    setDbConnectStep(`Connecting to SQL Server ${dbState.sqlServer}...`);
-
-    await new Promise((r) => setTimeout(r, 450));
-    setDbConnectStep(`Authenticating SQL user '${dbState.sqlUser}' on ${dbState.sqlDatabase}...`);
-
-    await new Promise((r) => setTimeout(r, 450));
-    setDbConnectStep('Loading Item_Mast, Lot_Stock & Sale_Bills tables...');
-
+    setDbConnectStep(`Checking for live SQL data from ${dbState.sqlServer} (${dbState.sqlDatabase})...`);
     await loadData(false);
+    setIsConnectingDb(false);
+    setDbConnectStep('');
+
+    if (!isRealLogicSyncedSource) {
+      persistDbState({ ...dbState, connected: false, connectedAt: '' });
+      handleDownloadConfiguredSqlBat();
+      setDbFeedback({
+        ok: false,
+        msg: `⚠️ Waiting for PC SQL Connector: Website seedhe aapke local computer ke SQL Server (${dbState.sqlServer}) ko bina connector ke read nahi kar sakti (abhi jo stock dikh raha hai vo aapki uploaded Excel file "${effectiveSourceFileName || 'Excel'}" ka hai). Aapke SQL User '${dbState.sqlUser}' aur Password ke saath pre-configured ".bat" file abhi download ho gayi hai — use apne Logic ERP wale PC par run karein, tabhi real SQL stock yahan sync hoga.`
+      });
+      return;
+    }
 
     const nowStr = new Date().toLocaleString('en-IN', {
       day: '2-digit',
@@ -271,18 +378,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       hour12: true
     });
 
-    const connectedNext: LogicDbConnectionState = {
+    persistDbState({
       ...dbState,
       connected: true,
       connectedAt: nowStr
-    };
-
-    persistDbState(connectedNext);
-    setIsConnectingDb(false);
-    setDbConnectStep('');
+    });
     setDbFeedback({
       ok: true,
-      msg: `Connected to ${dbState.sqlDatabase} as '${dbState.sqlUser}'. Live stock data (${activeArticles.length} articles) is now synced.`
+      msg: `✅ Connected to real Logic ERP SQL Sync (${effectiveSourceFileName}) with ${logicErpOnlyArticles.length} Logic ERP articles.`
     });
   };
 
@@ -1516,45 +1619,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <span>
                           {dbState.connected
                             ? dbState.connectionMode === 'chrome-web'
-                              ? 'Reconnect & Sync Logic Chrome ERP'
-                              : 'Reconnect & Refresh Logic Database'
+                              ? 'Re-Verify & Sync Logic Chrome Tab'
+                              : 'Re-Verify SQL Sync'
                             : dbState.connectionMode === 'chrome-web'
-                              ? 'Connect Logic Chrome ERP'
-                              : 'Connect Logic SQL Database'}
+                              ? 'Verify & Connect Logic Chrome ERP'
+                              : 'Verify & Connect Logic SQL Database'}
                         </span>
                       </button>
 
-                      {dbState.connected && (
-                        <>
-                          {dbState.connectionMode === 'chrome-web' ? (
-                            <button
-                              type="button"
-                              onClick={handleDownloadConfiguredChromeBridge}
-                              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Download className="w-4 h-4" />
-                              <span>Download Configured Chrome ERP Bridge (.zip)</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={handleDownloadConfiguredSqlBat}
-                              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
-                            >
-                              <Download className="w-4 h-4" />
-                              <span>Download Windows SQL Auto-Sync (.bat)</span>
-                            </button>
-                          )}
+                      {dbState.connectionMode === 'chrome-web' ? (
+                        <button
+                          type="button"
+                          onClick={handleDownloadConfiguredChromeBridge}
+                          className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Step 1: Download Chrome ERP Bridge (.zip)</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleDownloadConfiguredSqlBat}
+                          className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Step 1: Download Windows SQL Auto-Sync (.bat)</span>
+                        </button>
+                      )}
 
-                          <button
-                            type="button"
-                            onClick={handleDisconnectLogicDb}
-                            className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg transition-colors"
-                          >
-                            <Unplug className="w-3.5 h-3.5" />
-                            <span>Disconnect</span>
-                          </button>
-                        </>
+                      {dbState.connected && (
+                        <button
+                          type="button"
+                          onClick={handleDisconnectLogicDb}
+                          className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-lg transition-colors"
+                        >
+                          <Unplug className="w-3.5 h-3.5" />
+                          <span>Disconnect</span>
+                        </button>
                       )}
                     </div>
                   </form>
@@ -1563,7 +1664,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="lg:col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between space-y-4">
                     <div>
                       <div className="text-xs font-bold text-slate-800 mb-3">
-                        Connected User &amp; Logic ERP Summary
+                        Real Logic ERP Verification Summary
                       </div>
 
                       <div className="space-y-2.5 text-xs">
@@ -1576,14 +1677,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           >
                             {dbState.connected
                               ? dbState.connectionMode === 'chrome-web'
-                                ? 'Connected (Chrome Web ERP)'
-                                : 'Connected (SQL Active)'
-                              : 'Waiting for Password'}
+                                ? 'Verified (Live Chrome Tab)'
+                                : 'Verified (SQL Sync Active)'
+                              : 'Not Connected (Unverified)'}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between py-1.5 border-b border-slate-200/80">
-                          <span className="text-slate-500">Authenticated User</span>
+                          <span className="text-slate-500">Verified User</span>
                           <span className="font-mono font-bold text-slate-900">
                             {dbState.connected
                               ? dbState.connectionMode === 'chrome-web'
@@ -1607,82 +1708,64 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </div>
 
                         <div className="flex items-center justify-between py-1.5 border-b border-slate-200/80">
-                          <span className="text-slate-500">Sync Capabilities</span>
-                          <span className="font-mono text-[11px] text-slate-700">
-                            {dbState.connectionMode === 'chrome-web'
-                              ? 'Live Stock Table + Bill Save/Print Minus'
-                              : 'Item_Mast · Lot_Stock · Sale_Bill'}
+                          <span className="text-slate-500">Logic ERP Synced Stock</span>
+                          <span className="font-mono font-bold text-blue-700 tabular-nums">
+                            {logicErpOnlyArticles.length} Articles ({logicErpOnlyPieces} Pairs)
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between py-1.5">
-                          <span className="text-slate-500">User Stock Loaded</span>
-                          <span className="font-mono font-bold text-blue-700 tabular-nums">
-                            {computedTotalArticles} Articles ({computedTotalPieces} Pairs)
+                          <span className="text-slate-500">Excel Uploaded Stock</span>
+                          <span className="font-mono text-slate-600 tabular-nums">
+                            {!isRealLogicSyncedSource
+                              ? `${computedTotalArticles} Articles (${effectiveSourceFileName || 'Excel Sheet'})`
+                              : 'Replaced by Logic ERP Sync'}
                           </span>
                         </div>
                       </div>
                     </div>
 
                     <div className="text-[11px] text-slate-500 leading-relaxed">
-                      {dbState.connectionMode === 'chrome-web'
-                        ? 'Tip: Chrome ERP Connect karne ke baad "Download Configured Chrome ERP Bridge (.zip)" ko Chrome me load karein. Logic Chrome me "Sync Stock Table" button se poora stock aur Bill Save/Print par auto-minus dono kaam karenge.'
-                        : 'Tip: Password daal kar connect karne par aapka user data neeche table me turant khul jayega, aur aap PC ke liye pre-configured SQL Auto-Sync file bhi download kar sakte hain.'}
+                      <strong>Note (Zero Fake Login):</strong> Yeh form kisi bhi random username/password par connect nahi hoga aur na hi Excel sheet ko Logic ERP data batayega. Real connection ke liye Step 1 se Chrome ERP Bridge (.zip) ko <code className="font-mono">chrome://extensions</code> me load karein aur dusre tab me Logic ERP login rakhein.
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Connected User's Live Stock Data Preview */}
-              {dbState.connected && (
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="px-5 py-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-bold">
-                        Connected User Live Stock Data ({dbState.storeName} —{' '}
-                        {dbState.connectionMode === 'chrome-web'
-                          ? 'Logic Chrome ERP'
-                          : dbState.sqlDatabase}
-                        )
-                      </h3>
-                      <p className="text-[11px] text-slate-400">
-                        Showing live articles, sizes, barcodes &amp; closing stock for user &apos;
-                        {dbState.connectionMode === 'chrome-web'
-                          ? dbState.webUserId
-                          : dbState.sqlUser}
-                        &apos;
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('stock-data')}
-                      className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-                    >
-                      Open Full Stock Explorer ({computedTotalArticles})
-                    </button>
+              {/* Connected User's REAL Logic ERP Stock Data Preview (Strictly excludes Excel uploads) */}
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                <div className="px-5 py-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold">
+                      Logic ERP Synced Stock Data Only (Excludes Uploaded Excel Sheet)
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Yahan sirf wahi data dikhega jo Logic ERP Chrome (&quot;Sync Stock Table&quot;) ya SQL Connector se sync hua hai
+                    </p>
                   </div>
+                  <span className="text-xs font-mono text-emerald-300 tabular-nums">
+                    {logicErpOnlyArticles.length} Logic ERP Articles
+                  </span>
+                </div>
 
-                  <div className="p-4 border-b border-slate-200 bg-slate-50">
-                    <div className="relative max-w-md">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={stockSearch}
-                        onChange={(e) => setStockSearch(e.target.value)}
-                        placeholder="Search your connected database by Article, Barcode, or Size..."
-                        className="w-full pl-9 pr-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                      />
+                {logicErpOnlyArticles.length === 0 ? (
+                  <div className="p-8 text-center space-y-2">
+                    <div className="text-xs font-bold text-slate-800">
+                      Abhi Logic ERP se koi stock sync nahi hua hai (0 Logic ERP Articles).
                     </div>
+                    <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
+                      Abhi aapke scanner par jo <strong>{computedTotalArticles} Articles</strong> hain, vo aapki upload ki gayi Excel file (<strong>{effectiveSourceFileName || 'Excel Sheet'}</strong>) ke hain. Jab aap Chrome me Logic ERP khol kar <strong>&quot;Sync Stock Table&quot;</strong> dabayenge, tabhi Logic ERP ka asli stock yahan dikhega.
+                    </p>
                   </div>
-
+                ) : (
                   <div className="divide-y divide-slate-100">
                     <div className="px-5 py-2.5 bg-slate-50 grid grid-cols-12 text-[11px] font-semibold text-slate-500">
-                      <span className="col-span-4">ARTICLE CODE / BARCODE</span>
+                      <span className="col-span-4">LOGIC ERP ARTICLE / BARCODE</span>
                       <span className="col-span-6">SIZE-WISE LIVE QUANTITY</span>
                       <span className="col-span-2 text-right">TOTAL PAIRS</span>
                     </div>
 
-                    {filteredStockArticles.slice(0, 20).map((art) => {
+                    {logicErpOnlyArticles.slice(0, 30).map((art) => {
                       const totalPcs = (art.sizes || []).reduce(
                         (s, sz) => s + Math.max(0, Number(sz.quantity) || 0),
                         0
@@ -1728,8 +1811,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
 

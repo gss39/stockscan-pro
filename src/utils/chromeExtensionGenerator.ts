@@ -12,11 +12,11 @@ function getManifestJson(): string {
   return JSON.stringify(
     {
       manifest_version: 3,
-      name: 'StockScan Pro — Logic ERP Bill Save/Print Auto-Minus',
-      version: '2.1.0',
+      name: 'StockScan Pro — Logic ERP Chrome Bridge & Auto-Minus',
+      version: '3.0.0',
       description:
-        'Automatically deducts (-1) sold items from StockScan Pro on elooks.in across all phones whenever a Sale Bill is Saved or Printed in Chrome Logic ERP.',
-      permissions: ['storage', 'activeTab', 'scripting'],
+        'Connects Logic ERP Chrome Dashboard to elooks.in for real session verification, live stock table sync, and Bill Save/Print auto-minus.',
+      permissions: ['storage', 'activeTab', 'scripting', 'tabs'],
       host_permissions: [
         '<all_urls>',
         'https://api.github.com/*',
@@ -27,7 +27,7 @@ function getManifestJson(): string {
       },
       action: {
         default_popup: 'popup.html',
-        default_title: 'StockScan Auto-Minus (elooks.in)'
+        default_title: 'StockScan Logic Chrome Bridge (elooks.in)'
       },
       content_scripts: [
         {
@@ -507,6 +507,80 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg && msg.type === 'STOCKSCAN_VERIFY_LOGIC_TAB') {
+    (async () => {
+      try {
+        const rawUrl = String(msg.portalUrl || '').trim();
+        let targetHost = '';
+        try {
+          targetHost = new URL(rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl).hostname.toLowerCase();
+        } catch (e) {
+          targetHost = rawUrl.toLowerCase();
+        }
+
+        const tabs = await chrome.tabs.query({});
+        const matchedTab = tabs.find((t) => {
+          const u = String(t.url || '').toLowerCase();
+          if (!u || u.includes('elooks.in') || u.includes('github.io')) return false;
+          if (targetHost && u.includes(targetHost)) return true;
+          return u.includes('logicerp') || u.includes('/logic');
+        });
+
+        if (!matchedTab || !matchedTab.id) {
+          sendResponse({
+            ok: false,
+            reason: 'NO_TAB',
+            message: \`Chrome me aapka Logic ERP Portal (\${targetHost || rawUrl}) khula hua nahi mila! Pehle Chrome ke dusre tab me Logic ERP open karke login karein.\`
+          });
+          return;
+        }
+
+        chrome.tabs.sendMessage(
+          matchedTab.id,
+          { type: 'STOCKSCAN_INSPECT_LOGIC_TAB', expectedUser: msg.webUser || '' },
+          async (tabRes) => {
+            if (chrome.runtime.lastError || !tabRes) {
+              sendResponse({
+                ok: false,
+                reason: 'TAB_UNREACHABLE',
+                message: 'Logic ERP tab mila par abhi refresh nahi hua hai. Kripya Logic ERP wale Chrome tab ko ek baar Reload (F5) karein aur fir Connect dabayein.'
+              });
+              return;
+            }
+
+            if (tabRes.isLoginPage) {
+              sendResponse({
+                ok: false,
+                reason: 'NOT_LOGGED_IN',
+                message: 'Aapka Logic ERP Chrome tab abhi Login screen par hai! Pehle Logic ERP tab me apna User ID aur Password daal kar login pura karein.'
+              });
+              return;
+            }
+
+            let syncResult = null;
+            if (Array.isArray(tabRes.rows) && tabRes.rows.length > 0) {
+              syncResult = await syncFullStockFromChromeTable(
+                tabRes.rows,
+                \`Logic Chrome ERP (\${msg.storeName || matchedTab.title || 'Live'})\`
+              );
+            }
+
+            sendResponse({
+              ok: true,
+              tabTitle: matchedTab.title || 'Logic ERP Chrome',
+              tabUrl: matchedTab.url || rawUrl,
+              scrapedRowsCount: Array.isArray(tabRes.rows) ? tabRes.rows.length : 0,
+              syncResult
+            });
+          }
+        );
+      } catch (err) {
+        sendResponse({ ok: false, message: String(err) });
+      }
+    })();
+    return true;
+  }
+
   if (msg && msg.type === 'STOCKSCAN_GET_INFO') {
     fetchStockFromGitHub()
       .then(({ payload }) => {
@@ -525,11 +599,15 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
 // StockScan Pro — Logic ERP Chrome Dashboard Content Script
 // 1. Auto-Minus on Bill Save / Print (strictly reads QTY column)
 // 2. 1-Click Live Stock Table Sync from Logic ERP Chrome Inventory / Stock Report
+// 3. Real Session Handshake with elooks.in Dashboard
 // ============================================================================
 
 (function () {
   if (window.__stockScanErpInjected) return;
   window.__stockScanErpInjected = true;
+  try {
+    document.documentElement.setAttribute('data-stockscan-bridge', 'v3');
+  } catch (e) {}
 
   const PRECONFIGURED_HOST = '${preconfiguredHost.replace(/'/g, '')}'.toLowerCase();
   const PRECONFIGURED_USER = '${preconfiguredUser.replace(/'/g, '')}';
@@ -542,6 +620,47 @@ function getContentJs(preconfiguredHost = '', preconfiguredUser = '', preconfigu
   let allowedHosts = PRECONFIGURED_HOST ? [PRECONFIGURED_HOST] : [];
   let blockedHosts = [];
   let isErpActiveOnPage = false;
+
+  // Listen for Dashboard verification requests on elooks.in
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || !event.data) return;
+    if (event.data.type === 'STOCKSCAN_DASHBOARD_VERIFY_REQ') {
+      chrome.runtime.sendMessage(
+        {
+          type: 'STOCKSCAN_VERIFY_LOGIC_TAB',
+          portalUrl: event.data.portalUrl,
+          webUser: event.data.webUser,
+          storeName: event.data.storeName
+        },
+        (res) => {
+          window.postMessage(
+            {
+              type: 'STOCKSCAN_DASHBOARD_VERIFY_RES',
+              requestId: event.data.requestId,
+              result: res || { ok: false, message: 'No response from Chrome Extension background worker.' }
+            },
+            '*'
+          );
+        }
+      );
+    }
+  });
+
+  // Listen for inspection request from background worker when on Logic ERP tab
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg && msg.type === 'STOCKSCAN_INSPECT_LOGIC_TAB') {
+      const passInputs = document.querySelectorAll('input[type="password"]');
+      const visiblePass = Array.from(passInputs).some((el) => el.offsetParent !== null);
+      const rows = scrapeCurrentBillRows();
+      sendResponse({
+        ok: true,
+        isLoginPage: visiblePass && rows.length === 0,
+        pageTitle: document.title || '',
+        rows
+      });
+      return true;
+    }
+  });
 
   const currentHost = (window.location.hostname || '').toLowerCase();
   const currentHref = (window.location.href || '').toLowerCase();
