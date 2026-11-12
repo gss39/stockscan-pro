@@ -41283,9 +41283,9 @@ var REPO_NAME = "stockscan-pro";
 function getManifestJson() {
 	return JSON.stringify({
 		manifest_version: 3,
-		name: "StockScan Pro — Logic ERP Chrome Bridge & Auto-Minus",
-		version: "3.0.0",
-		description: "Connects Logic ERP Chrome Dashboard to elooks.in for real session verification, live stock table sync, and Bill Save/Print auto-minus.",
+		name: "StockScan Pro — Logic ERP One-Time Login & 24/7 Auto-Sync",
+		version: "4.0.0",
+		description: "Saves Logic ERP User ID & Password once, auto-logs into Logic ERP, continuously auto-syncs live stock every 20s, and auto-minuses bills on elooks.in.",
 		permissions: [
 			"storage",
 			"activeTab",
@@ -41778,48 +41778,75 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       try {
         const rawUrl = String(msg.portalUrl || '').trim();
+        const fullPortalUrl = rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl;
         let targetHost = '';
         try {
-          targetHost = new URL(rawUrl.startsWith('http') ? rawUrl : 'https://' + rawUrl).hostname.toLowerCase();
+          targetHost = new URL(fullPortalUrl).hostname.toLowerCase();
         } catch (e) {
           targetHost = rawUrl.toLowerCase();
         }
 
+        // Save credentials for continuous auto-login & auto-sync
+        await chrome.storage.local.set({
+          savedLogicCreds: {
+            portalUrl: fullPortalUrl,
+            targetHost,
+            webUser: String(msg.webUser || '').trim(),
+            webPassword: String(msg.webPassword || ''),
+            storeName: String(msg.storeName || 'Logic Chrome ERP').trim(),
+            autoSyncEnabled: true
+          }
+        });
+
         const tabs = await chrome.tabs.query({});
-        const matchedTab = tabs.find((t) => {
+        let matchedTab = tabs.find((t) => {
           const u = String(t.url || '').toLowerCase();
           if (!u || u.includes('elooks.in') || u.includes('github.io')) return false;
           if (targetHost && u.includes(targetHost)) return true;
           return u.includes('logicerp') || u.includes('/logic');
         });
 
+        // If the Logic ERP tab is not open yet, automatically open it in the background!
         if (!matchedTab || !matchedTab.id) {
-          sendResponse({
-            ok: false,
-            reason: 'NO_TAB',
-            message: \`Chrome me aapka Logic ERP Portal (\${targetHost || rawUrl}) khula hua nahi mila! Pehle Chrome ke dusre tab me Logic ERP open karke login karein.\`
+          matchedTab = await chrome.tabs.create({ url: fullPortalUrl, active: false });
+          await new Promise((resolve) => {
+            const timeout = setTimeout(resolve, 6000);
+            function listener(tabId, info) {
+              if (tabId === matchedTab.id && info.status === 'complete') {
+                clearTimeout(timeout);
+                chrome.tabs.onUpdated.removeListener(listener);
+                setTimeout(resolve, 800);
+              }
+            }
+            chrome.tabs.onUpdated.addListener(listener);
           });
-          return;
         }
 
         chrome.tabs.sendMessage(
           matchedTab.id,
-          { type: 'STOCKSCAN_INSPECT_LOGIC_TAB', expectedUser: msg.webUser || '' },
+          {
+            type: 'STOCKSCAN_INSPECT_AND_AUTOLOGIN_TAB',
+            webUser: msg.webUser || '',
+            webPassword: msg.webPassword || '',
+            storeName: msg.storeName || ''
+          },
           async (tabRes) => {
             if (chrome.runtime.lastError || !tabRes) {
               sendResponse({
                 ok: false,
                 reason: 'TAB_UNREACHABLE',
-                message: 'Logic ERP tab mila par abhi refresh nahi hua hai. Kripya Logic ERP wale Chrome tab ko ek baar Reload (F5) karein aur fir Connect dabayein.'
+                message: \`Could not reach Logic ERP URL (\${fullPortalUrl}). Please check that the Logic ERP URL is valid and accessible.\`
               });
               return;
             }
 
-            if (tabRes.isLoginPage) {
+            if (tabRes.loginFailed || tabRes.isLoginPage) {
               sendResponse({
                 ok: false,
-                reason: 'NOT_LOGGED_IN',
-                message: 'Aapka Logic ERP Chrome tab abhi Login screen par hai! Pehle Logic ERP tab me apna User ID aur Password daal kar login pura karein.'
+                reason: 'INVALID_CREDENTIALS',
+                message:
+                  tabRes.errorMessage ||
+                  'Logic ERP rejected this User ID / Password (or login page requires CAPTCHA). Please check your Logic ERP User ID and Password.'
               });
               return;
             }
@@ -41834,8 +41861,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
             sendResponse({
               ok: true,
-              tabTitle: matchedTab.title || 'Logic ERP Chrome',
-              tabUrl: matchedTab.url || rawUrl,
+              tabTitle: tabRes.pageTitle || matchedTab.title || 'Logic ERP Chrome',
+              tabUrl: matchedTab.url || fullPortalUrl,
               scrapedRowsCount: Array.isArray(tabRes.rows) ? tabRes.rows.length : 0,
               syncResult
             });
@@ -41858,26 +41885,74 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
+// Continuous Background Auto-Sync Daemon (Every 20 Seconds)
+let lastAutoSyncHash = '';
+setInterval(async () => {
+  try {
+    const st = await chrome.storage.local.get(['savedLogicCreds']);
+    const creds = st && st.savedLogicCreds;
+    if (!creds || !creds.autoSyncEnabled) return;
+
+    const tabs = await chrome.tabs.query({});
+    const matchedTab = tabs.find((t) => {
+      const u = String(t.url || '').toLowerCase();
+      if (!u || u.includes('elooks.in') || u.includes('github.io')) return false;
+      if (creds.targetHost && u.includes(creds.targetHost)) return true;
+      return u.includes('logicerp') || u.includes('/logic');
+    });
+
+    if (!matchedTab || !matchedTab.id) return;
+
+    chrome.tabs.sendMessage(
+      matchedTab.id,
+      {
+        type: 'STOCKSCAN_SILENT_AUTOSYNC_TICK',
+        webUser: creds.webUser,
+        webPassword: creds.webPassword
+      },
+      async (res) => {
+        if (chrome.runtime.lastError || !res || !res.ok) return;
+        const rows = Array.isArray(res.rows) ? res.rows : [];
+        if (rows.length === 0) return;
+
+        const hash = rows
+          .map((r) => \`\${r.barcode || r.articleCode}:\${r.size}:\${r.qty}\`)
+          .join('|');
+        if (hash && hash !== lastAutoSyncHash) {
+          lastAutoSyncHash = hash;
+          await syncFullStockFromChromeTable(
+            rows,
+            \`Logic Chrome Auto-Sync (\${creds.storeName || creds.webUser || 'Live'})\`
+          );
+        }
+      }
+    );
+  } catch (e) {
+    // Ignore background tick error
+  }
+}, 20000);
 `;
 }
-function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfiguredStore = "") {
+function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfiguredStore = "", preconfiguredPass = "") {
 	return `// ============================================================================
-// StockScan Pro — Logic ERP Chrome Dashboard Content Script
-// 1. Auto-Minus on Bill Save / Print (strictly reads QTY column)
-// 2. 1-Click Live Stock Table Sync from Logic ERP Chrome Inventory / Stock Report
-// 3. Real Session Handshake with elooks.in Dashboard
+// StockScan Pro — Logic ERP Chrome Dashboard Content Script (v4.0 Auto-Sync)
+// 1. One-Time User ID & Password Auto-Login into Logic ERP
+// 2. Continuous 20-Second Live Stock Auto-Sync Daemon
+// 3. Auto-Minus on Bill Save / Print (strictly reads QTY column)
 // ============================================================================
 
 (function () {
   if (window.__stockScanErpInjected) return;
   window.__stockScanErpInjected = true;
   try {
-    document.documentElement.setAttribute('data-stockscan-bridge', 'v3');
+    document.documentElement.setAttribute('data-stockscan-bridge', 'v4');
   } catch (e) {}
 
   const PRECONFIGURED_HOST = '${preconfiguredHost.replace(/'/g, "")}'.toLowerCase();
   const PRECONFIGURED_USER = '${preconfiguredUser.replace(/'/g, "")}';
   const PRECONFIGURED_STORE = '${preconfiguredStore.replace(/'/g, "")}';
+  const PRECONFIGURED_PASS = '${preconfiguredPass.replace(/'/g, "")}';
 
   let isDeducting = false;
   let isSyncingStock = false;
@@ -41887,7 +41962,57 @@ function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfigu
   let blockedHosts = [];
   let isErpActiveOnPage = false;
 
-  // Listen for Dashboard verification requests on elooks.in
+  function setNativeInputValue(input, val) {
+    if (!input) return;
+    const setter =
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    if (setter) {
+      setter.call(input, val);
+    } else {
+      input.value = val;
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function attemptAutoLoginOnPage(userStr, passStr) {
+    if (!userStr || !passStr) return false;
+    const passInputs = Array.from(document.querySelectorAll('input[type="password"]')).filter(
+      (el) => el.offsetParent !== null
+    );
+    if (passInputs.length === 0) return false;
+
+    const passInput = passInputs[0];
+    const form = passInput.closest('form') || document.body;
+    const textInputs = Array.from(
+      form.querySelectorAll(
+        'input[type="text"], input[type="email"], input:not([type]), input[name*="user" i], input[id*="user" i], input[name*="login" i]'
+      )
+    ).filter((el) => el.offsetParent !== null && el !== passInput);
+
+    if (textInputs.length > 0) {
+      setNativeInputValue(textInputs[0], userStr);
+    }
+    setNativeInputValue(passInput, passStr);
+
+    const submitBtns = Array.from(
+      form.querySelectorAll(
+        'button[type="submit"], input[type="submit"], button, input[type="button"], a.btn, [role="button"]'
+      )
+    ).filter((el) => {
+      const t = String(el.innerText || el.value || '').trim().toLowerCase();
+      return /\\b(login|log in|sign in|submit|continue|enter)\\b/.test(t);
+    });
+
+    if (submitBtns.length > 0) {
+      submitBtns[0].click();
+    } else if (passInput.form) {
+      passInput.form.submit();
+    }
+    return true;
+  }
+
+  // Listen for Dashboard verification & auto-login requests on elooks.in
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data) return;
     if (event.data.type === 'STOCKSCAN_DASHBOARD_VERIFY_REQ') {
@@ -41896,6 +42021,7 @@ function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfigu
           type: 'STOCKSCAN_VERIFY_LOGIC_TAB',
           portalUrl: event.data.portalUrl,
           webUser: event.data.webUser,
+          webPassword: event.data.webPassword,
           storeName: event.data.storeName
         },
         (res) => {
@@ -41912,18 +42038,59 @@ function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfigu
     }
   });
 
-  // Listen for inspection request from background worker when on Logic ERP tab
+  // Listen for inspection & auto-login request from background worker when on Logic ERP tab
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg && msg.type === 'STOCKSCAN_INSPECT_LOGIC_TAB') {
-      const passInputs = document.querySelectorAll('input[type="password"]');
-      const visiblePass = Array.from(passInputs).some((el) => el.offsetParent !== null);
+    if (msg && msg.type === 'STOCKSCAN_INSPECT_AND_AUTOLOGIN_TAB') {
+      (async () => {
+        const passInputsBefore = Array.from(document.querySelectorAll('input[type="password"]')).filter(
+          (el) => el.offsetParent !== null
+        );
+
+        // If on login page, automatically fill saved User ID & Password and submit!
+        if (passInputsBefore.length > 0 && msg.webUser && msg.webPassword) {
+          attemptAutoLoginOnPage(msg.webUser, msg.webPassword);
+          await new Promise((r) => setTimeout(r, 3200));
+        }
+
+        const passInputsAfter = Array.from(document.querySelectorAll('input[type="password"]')).filter(
+          (el) => el.offsetParent !== null
+        );
+        const bodyText = (document.body ? document.body.innerText || '' : '').slice(0, 2500).toLowerCase();
+        const hasAuthError =
+          /invalid user|invalid password|wrong password|incorrect|login failed|authentication failed|unauthorized/.test(
+            bodyText
+          );
+
+        const rows = scrapeCurrentBillRows();
+        const stillOnLogin = (passInputsAfter.length > 0 || hasAuthError) && rows.length === 0;
+
+        sendResponse({
+          ok: !stillOnLogin,
+          isLoginPage: stillOnLogin,
+          loginFailed: stillOnLogin,
+          errorMessage: hasAuthError
+            ? 'Invalid Logic ERP User ID or Password! Logic ERP rejected the login.'
+            : stillOnLogin
+              ? 'Logic ERP is still on the login screen (Invalid User ID / Password).'
+              : '',
+          pageTitle: document.title || '',
+          rows
+        });
+      })();
+      return true;
+    }
+
+    if (msg && msg.type === 'STOCKSCAN_SILENT_AUTOSYNC_TICK') {
+      const passInputs = Array.from(document.querySelectorAll('input[type="password"]')).filter(
+        (el) => el.offsetParent !== null
+      );
+      if (passInputs.length > 0 && msg.webUser && msg.webPassword) {
+        attemptAutoLoginOnPage(msg.webUser, msg.webPassword);
+        sendResponse({ ok: false });
+        return true;
+      }
       const rows = scrapeCurrentBillRows();
-      sendResponse({
-        ok: true,
-        isLoginPage: visiblePass && rows.length === 0,
-        pageTitle: document.title || '',
-        rows
-      });
+      sendResponse({ ok: true, rows });
       return true;
     }
   });
@@ -41979,16 +42146,40 @@ function getContentJs(preconfiguredHost = "", preconfiguredUser = "", preconfigu
     isErpActiveOnPage = detectLogicErpPage();
     if (isErpActiveOnPage) {
       createFloatingWidget();
+      // Check if we are on a Logic ERP login screen and have saved 1-time credentials
+      chrome.storage.local.get(['savedLogicCreds'], (st) => {
+        const creds = st && st.savedLogicCreds;
+        const u = (creds && creds.webUser) || PRECONFIGURED_USER;
+        const p = (creds && creds.webPassword) || PRECONFIGURED_PASS;
+        if (u && p) {
+          attemptAutoLoginOnPage(u, p);
+        }
+      });
     } else {
       removeFloatingWidget();
     }
   }
 
-  chrome.storage.local.get(['allowedHosts', 'blockedHosts'], (res) => {
+  chrome.storage.local.get(['allowedHosts', 'blockedHosts', 'savedLogicCreds'], (res) => {
     if (res && Array.isArray(res.allowedHosts)) {
       allowedHosts = Array.from(new Set([...allowedHosts, ...res.allowedHosts]));
     }
     if (res && Array.isArray(res.blockedHosts)) blockedHosts = res.blockedHosts;
+
+    // Seed preconfigured 1-time credentials if not saved yet
+    if ((!res || !res.savedLogicCreds) && PRECONFIGURED_USER && PRECONFIGURED_PASS) {
+      chrome.storage.local.set({
+        savedLogicCreds: {
+          portalUrl: PRECONFIGURED_HOST ? 'https://' + PRECONFIGURED_HOST : '',
+          targetHost: PRECONFIGURED_HOST,
+          webUser: PRECONFIGURED_USER,
+          webPassword: PRECONFIGURED_PASS,
+          storeName: PRECONFIGURED_STORE || 'Logic Chrome ERP',
+          autoSyncEnabled: true
+        }
+      });
+    }
+
     refreshActivationState();
     setTimeout(refreshActivationState, 2000);
   });
@@ -42739,7 +42930,7 @@ function downloadChromeExtensionZip(config) {
 		},
 		{
 			name: "content.js",
-			content: getContentJs(host, config?.webUser || "", config?.storeName || "")
+			content: getContentJs(host, config?.webUser || "", config?.storeName || "", config?.webPassword || "")
 		},
 		{
 			name: "popup.html",
@@ -43247,16 +43438,16 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 				});
 				return;
 			}
-			setDbConnectStep(`Verifying open Logic ERP tab (${dbState.webPortalUrl}) via Chrome Extension...`);
+			setDbConnectStep(`Auto-Logging in & Verifying Logic ERP (${dbState.webPortalUrl}) with User '${dbState.webUserId}'...`);
 			const verifyRes = await new Promise((resolve) => {
 				const reqId = "req_" + Date.now();
 				const timer = setTimeout(() => {
 					window.removeEventListener("message", onMsg);
 					resolve({
 						ok: false,
-						message: "Chrome Extension Bridge v3 did not respond. Please re-download the latest Chrome ERP Bridge (.zip) below and click Reload in chrome://extensions."
+						message: "Chrome Extension Bridge v4 did not respond in time. Please download the latest Chrome ERP Bridge (.zip) below and click Reload in chrome://extensions."
 					});
-				}, 2500);
+				}, 1e4);
 				function onMsg(event) {
 					if (event.source === window && event.data && event.data.type === "STOCKSCAN_DASHBOARD_VERIFY_RES" && event.data.requestId === reqId) {
 						clearTimeout(timer);
@@ -43273,6 +43464,7 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 					requestId: reqId,
 					portalUrl: dbState.webPortalUrl,
 					webUser: dbState.webUserId,
+					webPassword: dbState.webPassword,
 					storeName: dbState.storeName
 				}, "*");
 			});
@@ -43307,7 +43499,7 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 			setDbConnectStep("");
 			setDbFeedback({
 				ok: true,
-				msg: `✅ Real Logic ERP Chrome Tab Verified (${verifyRes.tabTitle || dbState.webPortalUrl})! Synced ${verifyRes.scrapedRowsCount || 0} live rows from Logic ERP.`
+				msg: `✅ One-Time Login Verified & 24/7 Auto-Sync Active (${verifyRes.tabTitle || dbState.webPortalUrl})! Synced ${verifyRes.scrapedRowsCount || 0} live rows. Ab har 20 second me data apne aap sync hota rahega.`
 			});
 			return;
 		}
@@ -43386,6 +43578,7 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 		downloadChromeExtensionZip({
 			portalUrl: dbState.webPortalUrl,
 			webUser: dbState.webUserId,
+			webPassword: dbState.webPassword,
 			storeName: dbState.storeName
 		});
 	};
@@ -44336,10 +44529,19 @@ var DashboardView = ({ totalArticlesInSheet, totalPiecesInSheet, sheetFileName, 
 											dbState.connectionMode === "chrome-web" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 													className: "p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-slate-700 leading-relaxed",
-													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
-														className: "text-slate-900",
-														children: "Logic ERP Chrome / Web Dashboard Mode:"
-													}), " Apna Logic ERP Web Portal URL, User ID aur Password daal kar connect karein. Isse aapka user account connect ho jayega aur Chrome se Live Stock Table + Bill Save/Print Minus seedhe sync honge."]
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+															className: "text-slate-900",
+															children: "1-Time Login & 24/7 Live Auto-Sync (Chrome ERP Mode):"
+														}),
+														" Sirf ",
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "ek baar" }),
+														" apna Logic ERP URL, User ID aur Password daal kar connect karein. Extension aapka ID/Password save kar lega, apne aap Logic ERP me ",
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Auto-Login" }),
+														" karega, aur har ",
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "20 second" }),
+														" me background se Live Stock + Bill Minus apne aap Dashboard me sync karta rahega!"
+													]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 													className: "grid grid-cols-1 sm:grid-cols-2 gap-4",

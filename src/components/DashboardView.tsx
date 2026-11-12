@@ -252,9 +252,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         return;
       }
 
-      // 2. Ask the installed Chrome Extension to verify that the Logic ERP tab is open and logged in
+      // 2. Ask the installed Chrome Extension to open/inspect Logic ERP tab, auto-login with 1-time ID/Password, and start 20s Auto-Sync
       setDbConnectStep(
-        `Verifying open Logic ERP tab (${dbState.webPortalUrl}) via Chrome Extension...`
+        `Auto-Logging in & Verifying Logic ERP (${dbState.webPortalUrl}) with User '${dbState.webUserId}'...`
       );
 
       const verifyRes = await new Promise<{
@@ -269,9 +269,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           resolve({
             ok: false,
             message:
-              'Chrome Extension Bridge v3 did not respond. Please re-download the latest Chrome ERP Bridge (.zip) below and click Reload in chrome://extensions.'
+              'Chrome Extension Bridge v4 did not respond in time. Please download the latest Chrome ERP Bridge (.zip) below and click Reload in chrome://extensions.'
           });
-        }, 2500);
+        }, 10000);
 
         function onMsg(event: MessageEvent) {
           if (
@@ -293,6 +293,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             requestId: reqId,
             portalUrl: dbState.webPortalUrl,
             webUser: dbState.webUserId,
+            webPassword: dbState.webPassword,
             storeName: dbState.storeName
           },
           '*'
@@ -332,7 +333,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       setDbConnectStep('');
       setDbFeedback({
         ok: true,
-        msg: `✅ Real Logic ERP Chrome Tab Verified (${verifyRes.tabTitle || dbState.webPortalUrl})! Synced ${verifyRes.scrapedRowsCount || 0} live rows from Logic ERP.`
+        msg: `✅ One-Time Login Verified & 24/7 Auto-Sync Active (${verifyRes.tabTitle || dbState.webPortalUrl})! Synced ${verifyRes.scrapedRowsCount || 0} live rows. Ab har 20 second me data apne aap sync hota rahega.`
       });
       return;
     }
@@ -417,6 +418,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     downloadChromeExtensionZip({
       portalUrl: dbState.webPortalUrl,
       webUser: dbState.webUserId,
+      webPassword: dbState.webPassword,
       storeName: dbState.storeName
     });
   };
@@ -1406,7 +1408,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     {dbState.connectionMode === 'chrome-web' ? (
                       <>
                         <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-slate-700 leading-relaxed">
-                          <strong className="text-slate-900">Logic ERP Chrome / Web Dashboard Mode:</strong> Apna Logic ERP Web Portal URL, User ID aur Password daal kar connect karein. Isse aapka user account connect ho jayega aur Chrome se Live Stock Table + Bill Save/Print Minus seedhe sync honge.
+                          <strong className="text-slate-900">1-Time Login &amp; 24/7 Live Auto-Sync (Chrome ERP Mode):</strong> Sirf <strong>ek baar</strong> apna Logic ERP URL, User ID aur Password daal kar connect karein. Extension aapka ID/Password save kar lega, apne aap Logic ERP me <strong>Auto-Login</strong> karega, aur har <strong>20 second</strong> me background se Live Stock + Bill Minus apne aap Dashboard me sync karta rahega!
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
