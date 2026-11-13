@@ -502,7 +502,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:12 am",
       "lastSeen": "13 Nov, 02:27 pm",
-      "lastSeenTs": 1794560225109,
+      "lastSeenTs": 1794560229316,
       "visitsCount": 5
     },
     {
@@ -600,6 +600,15 @@
       "totalStock": 3
     },
     {
+      "articleCode": "RSL1357 GWE",
+      "name": "RSL1357 GWE",
+      "barcode": "8909102183654",
+      "count": 2,
+      "lastSearchedAt": "13 Nov, 02:27 pm",
+      "lastSearchedTs": 1794560229316,
+      "totalStock": 4
+    },
+    {
       "articleCode": "RSO4648 WGR",
       "name": "RSO4648 WGR",
       "barcode": "8909102459667",
@@ -690,15 +699,6 @@
       "totalStock": 3
     },
     {
-      "articleCode": "RSL1357 GWE",
-      "name": "RSL1357 GWE",
-      "barcode": "8909102183654",
-      "count": 1,
-      "lastSearchedAt": "09 Nov, 04:01 pm",
-      "lastSearchedTs": 1794220313301,
-      "totalStock": 4
-    },
-    {
       "articleCode": "RSL1356 WBL",
       "name": "RSL1356 WBL",
       "barcode": "8909102183814",
@@ -776,7 +776,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794560225109,
+  "updatedAt": 1794560229316,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
