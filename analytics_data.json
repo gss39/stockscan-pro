@@ -1,6 +1,14 @@
 {
-  "totalVisits": 142,
+  "totalVisits": 143,
   "visitors": [
+    {
+      "visitorId": "USR-MCKEC0",
+      "device": "Linux · Chrome",
+      "firstSeen": "13 Nov, 02:51 pm",
+      "lastSeen": "13 Nov, 02:51 pm",
+      "lastSeenTs": 1794581466254,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-QY62RO",
       "device": "Linux · Chrome",
@@ -801,8 +809,56 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794581261209,
+  "updatedAt": 1794581324100,
   "soldDeductions": [
+    {
+      "id": "deduct-1794581324100-372w",
+      "articleCode": "RFS6378 WHT",
+      "itemName": "RFS6378 WHT",
+      "size": "XXL/46",
+      "barcode": "8909102376575",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:18 pm",
+      "timestampMs": 1794581324100
+    },
+    {
+      "id": "deduct-1794581324100-nykw",
+      "articleCode": "RSO5088 WHT",
+      "itemName": "RSO5088 WHT",
+      "size": "07/41",
+      "barcode": "8909102624119",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:18 pm",
+      "timestampMs": 1794581324100
+    },
+    {
+      "id": "deduct-1794581324100-sahb",
+      "articleCode": "RFS6378 WHT",
+      "itemName": "RFS6378 WHT",
+      "size": "L/42",
+      "barcode": "8909102376537",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:18 pm",
+      "timestampMs": 1794581324100
+    },
+    {
+      "id": "deduct-1794581324100-yb01",
+      "articleCode": "RSO5088 WHT",
+      "itemName": "RSO5088 WHT",
+      "size": "07/41",
+      "barcode": "8909102624119",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:18 pm",
+      "timestampMs": 1794581324100
+    },
     {
       "id": "deduct-1794581261209-08u8",
       "articleCode": "RSO5088 WHT",
