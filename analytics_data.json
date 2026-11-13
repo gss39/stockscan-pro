@@ -501,8 +501,8 @@
       "visitorId": "USR-A6FHAZ",
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:12 am",
-      "lastSeen": "13 Nov, 02:01 pm",
-      "lastSeenTs": 1794558710165,
+      "lastSeen": "13 Nov, 02:27 pm",
+      "lastSeenTs": 1794560225109,
       "visitsCount": 5
     },
     {
@@ -728,6 +728,18 @@
   ],
   "issues": [
     {
+      "id": "iss-1794560225109-f97l",
+      "type": "not_found",
+      "title": "Article / Barcode Not Found in Stock",
+      "detail": "User searched or scanned \"Rßl\" which does not exist in the active stock sheet.",
+      "query": "Rßl",
+      "device": "Android Phone · Chrome",
+      "visitorId": "USR-A6FHAZ",
+      "timestamp": "13 Nov, 02:27 pm",
+      "timestampMs": 1794560225109,
+      "occurrences": 1
+    },
+    {
       "id": "iss-1794137602106-pl1f",
       "type": "not_found",
       "title": "Article / Barcode Not Found in Stock",
@@ -764,7 +776,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794558710165,
+  "updatedAt": 1794560225109,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
