@@ -470,7 +470,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "13 Nov, 02:55 pm",
-      "lastSeenTs": 1794561924567,
+      "lastSeenTs": 1794561929323,
       "visitsCount": 21
     },
     {
@@ -589,6 +589,15 @@
       "totalStock": 8
     },
     {
+      "articleCode": "RSL1357 GWE",
+      "name": "RSL1357 GWE",
+      "barcode": "8909102183654",
+      "count": 4,
+      "lastSearchedAt": "13 Nov, 02:55 pm",
+      "lastSearchedTs": 1794561929323,
+      "totalStock": 4
+    },
+    {
       "articleCode": "RSO3501B BLK",
       "name": "RSO3501B BLK",
       "barcode": "8909102136872",
@@ -596,15 +605,6 @@
       "lastSearchedAt": "13 Nov, 02:01 pm",
       "lastSearchedTs": 1794558706872,
       "totalStock": 1
-    },
-    {
-      "articleCode": "RSL1357 GWE",
-      "name": "RSL1357 GWE",
-      "barcode": "8909102183654",
-      "count": 3,
-      "lastSearchedAt": "13 Nov, 02:33 pm",
-      "lastSearchedTs": 1794560585193,
-      "totalStock": 4
     },
     {
       "articleCode": "RMW0309 GRY",
@@ -792,7 +792,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794561924567,
+  "updatedAt": 1794561929323,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
