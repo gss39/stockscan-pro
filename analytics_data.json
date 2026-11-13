@@ -1,5 +1,5 @@
 {
-  "totalVisits": 135,
+  "totalVisits": 136,
   "visitors": [
     {
       "visitorId": "USR-4GEO5E",
@@ -454,8 +454,8 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "13 Nov, 01:41 pm",
-      "lastSeenTs": 1794557479874,
-      "visitsCount": 17
+      "lastSeenTs": 1794557483205,
+      "visitsCount": 18
     },
     {
       "visitorId": "USR-35N973",
@@ -755,7 +755,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794557479874,
+  "updatedAt": 1794557483205,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
