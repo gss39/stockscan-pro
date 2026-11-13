@@ -1,14 +1,6 @@
 {
-  "totalVisits": 145,
+  "totalVisits": 144,
   "visitors": [
-    {
-      "visitorId": "USR-DT611V",
-      "device": "Linux · Chrome",
-      "firstSeen": "13 Nov, 02:58 pm",
-      "lastSeen": "13 Nov, 02:58 pm",
-      "lastSeenTs": 1794581908047,
-      "visitsCount": 1
-    },
     {
       "visitorId": "USR-IY2KB4",
       "device": "Linux · Chrome",
@@ -825,8 +817,44 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794581908047,
+  "updatedAt": 1794581709021,
   "soldDeductions": [
+    {
+      "id": "deduct-1794581709021-uq7m",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "32",
+      "barcode": "8909102208180",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "13 Nov, 08:25 pm",
+      "timestampMs": 1794581709021
+    },
+    {
+      "id": "deduct-1794581709021-52dw",
+      "articleCode": "RDM1024A DBL",
+      "itemName": "RDM1024A DBL",
+      "size": "38",
+      "barcode": "8909102208258",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "13 Nov, 08:25 pm",
+      "timestampMs": 1794581709021
+    },
+    {
+      "id": "deduct-1794581709021-985z",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "30",
+      "barcode": "8909102208265",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "13 Nov, 08:25 pm",
+      "timestampMs": 1794581709021
+    },
     {
       "id": "deduct-1794581758255-3yqi",
       "articleCode": "RDM1014A T BLUE",
