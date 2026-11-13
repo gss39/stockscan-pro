@@ -801,8 +801,32 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794581168934,
+  "updatedAt": 1794581261209,
   "soldDeductions": [
+    {
+      "id": "deduct-1794581261209-08u8",
+      "articleCode": "RSO5088 WHT",
+      "itemName": "RSO5088 WHT",
+      "size": "07/41",
+      "barcode": "8909102624119",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "13 Nov, 08:17 pm",
+      "timestampMs": 1794581261209
+    },
+    {
+      "id": "deduct-1794581261209-nt53",
+      "articleCode": "RSO5088 WHT",
+      "itemName": "RSO5088 WHT",
+      "size": "07/41",
+      "barcode": "8909102624119",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "13 Nov, 08:17 pm",
+      "timestampMs": 1794581261209
+    },
     {
       "id": "deduct-1794581168934-kmaw",
       "articleCode": "RMW0309 GRY",
