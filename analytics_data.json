@@ -817,43 +817,55 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794581686156,
+  "updatedAt": 1794581758255,
   "soldDeductions": [
     {
-      "id": "deduct-1794581686156-supb",
+      "id": "deduct-1794581758255-3yqi",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "38",
+      "barcode": "8909102208210",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: PRINT AND SAVE",
+      "timestamp": "13 Nov, 08:25 pm",
+      "timestampMs": 1794581758255
+    },
+    {
+      "id": "deduct-1794581758255-pk0u",
       "articleCode": "RDM1024A DBL",
       "itemName": "RDM1024A DBL",
       "size": "38",
       "barcode": "8909102208258",
       "qtyDeducted": 1,
       "remainingQty": 0,
-      "source": "Shortcut F2",
-      "timestamp": "13 Nov, 08:24 pm",
-      "timestampMs": 1794581686156
+      "source": "Button: PRINT AND SAVE",
+      "timestamp": "13 Nov, 08:25 pm",
+      "timestampMs": 1794581758255
     },
     {
-      "id": "deduct-1794581686156-9v4h",
-      "articleCode": "RDM1024A DBL",
-      "itemName": "RDM1024A DBL",
-      "size": "38",
-      "barcode": "8909102208258",
-      "qtyDeducted": 1,
-      "remainingQty": 0,
-      "source": "Shortcut F2",
-      "timestamp": "13 Nov, 08:24 pm",
-      "timestampMs": 1794581686156
-    },
-    {
-      "id": "deduct-1794581686156-bbsx",
+      "id": "deduct-1794581614527-pb6y",
       "articleCode": "RSO4504A BLUE",
       "itemName": "RSO4504A BLUE",
       "size": "06/40",
       "barcode": "8909102404452",
       "qtyDeducted": 1,
       "remainingQty": 0,
-      "source": "Shortcut F2",
-      "timestamp": "13 Nov, 08:24 pm",
-      "timestampMs": 1794581686156
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:23 pm",
+      "timestampMs": 1794581614527
+    },
+    {
+      "id": "deduct-1794581614527-bnnb",
+      "articleCode": "RSO4504A BLUE",
+      "itemName": "RSO4504A BLUE",
+      "size": "06/40",
+      "barcode": "8909102404452",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:23 pm",
+      "timestampMs": 1794581614527
     },
     {
       "id": "deduct-1794581368428-6dsl",
