@@ -817,8 +817,32 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794581368428,
+  "updatedAt": 1794581614527,
   "soldDeductions": [
+    {
+      "id": "deduct-1794581614527-pb6y",
+      "articleCode": "RSO4504A BLUE",
+      "itemName": "RSO4504A BLUE",
+      "size": "06/40",
+      "barcode": "8909102404452",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:23 pm",
+      "timestampMs": 1794581614527
+    },
+    {
+      "id": "deduct-1794581614527-bnnb",
+      "articleCode": "RSO4504A BLUE",
+      "itemName": "RSO4504A BLUE",
+      "size": "06/40",
+      "barcode": "8909102404452",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "13 Nov, 08:23 pm",
+      "timestampMs": 1794581614527
+    },
     {
       "id": "deduct-1794581368428-6dsl",
       "articleCode": "RFS6378 WHT",
