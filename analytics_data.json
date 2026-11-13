@@ -454,7 +454,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "13 Nov, 01:41 pm",
-      "lastSeenTs": 1794557483205,
+      "lastSeenTs": 1794557486787,
       "visitsCount": 18
     },
     {
@@ -591,6 +591,15 @@
       "totalStock": 1
     },
     {
+      "articleCode": "RSO4537 WGR",
+      "name": "RSO4537 WGR",
+      "barcode": "8909102236336",
+      "count": 2,
+      "lastSearchedAt": "13 Nov, 01:41 pm",
+      "lastSearchedTs": 1794557486787,
+      "totalStock": 3
+    },
+    {
       "articleCode": "RSO4648 WGR",
       "name": "RSO4648 WGR",
       "barcode": "8909102459667",
@@ -699,15 +708,6 @@
       "totalStock": 8
     },
     {
-      "articleCode": "RSO4537 WGR",
-      "name": "RSO4537 WGR",
-      "barcode": "8909102236336",
-      "count": 1,
-      "lastSearchedAt": "13 Nov, 01:32 pm",
-      "lastSearchedTs": 1794556921254,
-      "totalStock": 3
-    },
-    {
       "articleCode": "RSO4521A BLK",
       "name": "RSO4521A BLK",
       "barcode": "8909102499274",
@@ -755,7 +755,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794557483205,
+  "updatedAt": 1794557486787,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
