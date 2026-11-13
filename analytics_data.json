@@ -469,8 +469,8 @@
       "visitorId": "USR-STEJ6C",
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
-      "lastSeen": "13 Nov, 02:55 pm",
-      "lastSeenTs": 1794561929323,
+      "lastSeen": "13 Nov, 04:39 pm",
+      "lastSeenTs": 1794568172954,
       "visitsCount": 21
     },
     {
@@ -740,6 +740,15 @@
       "lastSearchedAt": "13 Nov, 02:01 pm",
       "lastSearchedTs": 1794558710165,
       "totalStock": 10
+    },
+    {
+      "articleCode": "RSO4767 WRY",
+      "name": "RSO4767 WRY",
+      "barcode": "8909102526499",
+      "count": 1,
+      "lastSearchedAt": "13 Nov, 04:39 pm",
+      "lastSearchedTs": 1794568172954,
+      "totalStock": 5
     }
   ],
   "issues": [
@@ -792,7 +801,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794561929323,
+  "updatedAt": 1794568172954,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
