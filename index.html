@@ -60,8 +60,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="StockScan" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -90,10 +90,11 @@
       }
     </script>
     <style>:root{--font-sans:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;--font-mono:"JetBrains Mono", monospace}html,body{font-family:var(--font-sans);color:#0f172a;-webkit-font-smoothing:antialiased;background-color:#f1f5f9;margin:0;padding:0}code,pre,.font-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}.tabular-nums{font-variant-numeric:tabular-nums}#barcode-reader-viewport video{border-radius:.5rem;object-fit:cover!important;width:100%!important;height:100%!important}</style>
-  </head>
+    <script type="module" crossorigin src="./assets/stockscan.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/stockscan.css">
+  <link rel="manifest" href="./manifest.webmanifest"></head>
   <body class="bg-slate-100 text-slate-900 antialiased selection:bg-blue-600 selection:text-white">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
     <script>
       (function () {
         var isViteDev = !!document.querySelector('script[src*="@vite/client"]') || window.location.port === '3000';

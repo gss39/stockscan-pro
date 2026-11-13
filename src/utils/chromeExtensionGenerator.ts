@@ -13,10 +13,10 @@ function getManifestJson(): string {
     {
       manifest_version: 3,
       name: 'StockScan Pro — Logic ERP One-Time Login & 24/7 Auto-Sync',
-      version: '4.0.0',
+      version: '4.1.0',
       description:
-        'Saves Logic ERP User ID & Password once, auto-logs into Logic ERP, continuously auto-syncs live stock every 20s, and auto-minuses bills on elooks.in.',
-      permissions: ['storage', 'activeTab', 'scripting', 'tabs'],
+        'Saves Logic ERP User ID & Password once, auto-logs into Logic ERP, continuously auto-syncs live stock via Chrome Alarms, and auto-minuses bills on elooks.in.',
+      permissions: ['storage', 'activeTab', 'scripting', 'tabs', 'alarms'],
       host_permissions: [
         '<all_urls>',
         'https://api.github.com/*',
@@ -617,54 +617,159 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, message: String(err) }));
     return true;
   }
+
+  if (msg && msg.type === 'STOCKSCAN_FORCE_AUTOSYNC_NOW') {
+    runAutoSyncTick(true)
+      .then((res) => sendResponse(res))
+      .catch((err) => sendResponse({ ok: false, message: String(err) }));
+    return true;
+  }
 });
 
-// Continuous Background Auto-Sync Daemon (Every 20 Seconds)
-let lastAutoSyncHash = '';
-setInterval(async () => {
-  try {
-    const st = await chrome.storage.local.get(['savedLogicCreds']);
-    const creds = st && st.savedLogicCreds;
-    if (!creds || !creds.autoSyncEnabled) return;
+// ============================================================================
+// Persistent 24/7 Background Auto-Sync Daemon (Survives Chrome Sleep & Restart)
+// Uses Chrome MV3 Alarms + Background Tab Recovery + 1-Time Saved Credentials
+// ============================================================================
+let isTickRunning = false;
 
-    const tabs = await chrome.tabs.query({});
-    const matchedTab = tabs.find((t) => {
-      const u = String(t.url || '').toLowerCase();
-      if (!u || u.includes('elooks.in') || u.includes('github.io')) return false;
-      if (creds.targetHost && u.includes(creds.targetHost)) return true;
-      return u.includes('logicerp') || u.includes('/logic');
-    });
+async function ensureLogicErpTab(creds) {
+  const tabs = await chrome.tabs.query({});
+  let matchedTab = tabs.find((t) => {
+    const u = String(t.url || '').toLowerCase();
+    if (!u || u.includes('elooks.in') || u.includes('github.io')) return false;
+    if (creds.targetHost && u.includes(creds.targetHost)) return true;
+    return u.includes('logicerp') || u.includes('/logic');
+  });
 
-    if (!matchedTab || !matchedTab.id) return;
+  if (matchedTab && matchedTab.id) {
+    return matchedTab;
+  }
 
-    chrome.tabs.sendMessage(
-      matchedTab.id,
-      {
-        type: 'STOCKSCAN_SILENT_AUTOSYNC_TICK',
-        webUser: creds.webUser,
-        webPassword: creds.webPassword
-      },
-      async (res) => {
-        if (chrome.runtime.lastError || !res || !res.ok) return;
-        const rows = Array.isArray(res.rows) ? res.rows : [];
-        if (rows.length === 0) return;
-
-        const hash = rows
-          .map((r) => \`\${r.barcode || r.articleCode}:\${r.size}:\${r.qty}\`)
-          .join('|');
-        if (hash && hash !== lastAutoSyncHash) {
-          lastAutoSyncHash = hash;
-          await syncFullStockFromChromeTable(
-            rows,
-            \`Logic Chrome Auto-Sync (\${creds.storeName || creds.webUser || 'Live'})\`
-          );
+  // If the user closed the Logic ERP tab after 1-time connect, silently re-open it in the background
+  if (creds.portalUrl) {
+    const createdTab = await chrome.tabs.create({ url: creds.portalUrl, active: false });
+    await new Promise((resolve) => {
+      const timeout = setTimeout(resolve, 6500);
+      function listener(tabId, info) {
+        if (tabId === createdTab.id && info.status === 'complete') {
+          clearTimeout(timeout);
+          chrome.tabs.onUpdated.removeListener(listener);
+          setTimeout(resolve, 1000);
         }
       }
-    );
-  } catch (e) {
-    // Ignore background tick error
+      chrome.tabs.onUpdated.addListener(listener);
+    });
+    return createdTab;
   }
-}, 20000);
+  return null;
+}
+
+async function runAutoSyncTick(forceSync = false) {
+  if (isTickRunning) return { ok: false, message: 'Sync already in progress.' };
+  isTickRunning = true;
+
+  try {
+    const st = await chrome.storage.local.get(['savedLogicCreds', 'lastAutoSyncHash']);
+    const creds = st && st.savedLogicCreds;
+    const prevHash = st && st.lastAutoSyncHash ? String(st.lastAutoSyncHash) : '';
+
+    if (!creds || !creds.autoSyncEnabled) {
+      isTickRunning = false;
+      return { ok: false, message: '1-Time Logic ERP credentials not saved yet.' };
+    }
+
+    const matchedTab = await ensureLogicErpTab(creds);
+    if (!matchedTab || !matchedTab.id) {
+      isTickRunning = false;
+      return { ok: false, message: 'Logic ERP tab could not be opened.' };
+    }
+
+    return await new Promise((resolve) => {
+      chrome.tabs.sendMessage(
+        matchedTab.id,
+        {
+          type: 'STOCKSCAN_SILENT_AUTOSYNC_TICK',
+          webUser: creds.webUser,
+          webPassword: creds.webPassword
+        },
+        async (res) => {
+          if (chrome.runtime.lastError || !res || !res.ok) {
+            isTickRunning = false;
+            resolve({ ok: false, message: 'Waiting for Logic ERP table/session...' });
+            return;
+          }
+
+          const rows = Array.isArray(res.rows) ? res.rows : [];
+          if (rows.length === 0) {
+            isTickRunning = false;
+            resolve({ ok: false, message: 'Logic ERP open, waiting for Stock Table rows.' });
+            return;
+          }
+
+          const hash = rows
+            .map((r) => \`\${r.barcode || r.articleCode}:\${r.size}:\${r.qty}\`)
+            .join('|');
+
+          if (forceSync || (hash && hash !== prevHash)) {
+            const syncRes = await syncFullStockFromChromeTable(
+              rows,
+              \`Logic Chrome Auto-Sync (\${creds.storeName || creds.webUser || 'Live'})\`
+            );
+            const nowStr = new Date().toLocaleString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+            await chrome.storage.local.set({
+              lastAutoSyncHash: hash,
+              lastAutoSyncTime: nowStr,
+              lastAutoSyncRows: rows.length
+            });
+            isTickRunning = false;
+            resolve({ ok: true, rowsCount: rows.length, syncRes });
+          } else {
+            isTickRunning = false;
+            resolve({ ok: true, unchanged: true, rowsCount: rows.length });
+          }
+        }
+      );
+    });
+  } catch (e) {
+    isTickRunning = false;
+    return { ok: false, message: String(e) };
+  }
+}
+
+function registerAutoSyncAlarms() {
+  try {
+    chrome.alarms.create('stockscanAutoSyncAlarm', { periodInMinutes: 0.5 });
+  } catch (e) {
+    // Fallback if <1m alarm restricted
+    chrome.alarms.create('stockscanAutoSyncAlarm', { periodInMinutes: 1 });
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  registerAutoSyncAlarms();
+  setTimeout(() => runAutoSyncTick(false), 3000);
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  registerAutoSyncAlarms();
+  setTimeout(() => runAutoSyncTick(false), 4000);
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm && alarm.name === 'stockscanAutoSyncAlarm') {
+    runAutoSyncTick(false);
+  }
+});
+
+// Ensure alarm is registered whenever service worker wakes up + fast 20s in-memory interval
+registerAutoSyncAlarms();
+setInterval(() => runAutoSyncTick(false), 20000);
 `;
 }
 
@@ -1471,6 +1576,10 @@ function getPopupHtml(): string {
       </span>
       <span style="font-size:10px;color:#15803d;font-weight:600;" id="articleCountText">Loading stock...</span>
     </div>
+    <div id="autoSyncStatusRow" style="margin-top:6px;padding-top:6px;border-top:1px dashed #86efac;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+      <span id="autoSyncBadgeText" style="font-size:10px;color:#166534;font-weight:600;">Checking 24/7 Auto-Sync...</span>
+      <button class="btn btn-green" id="syncNowBtn" style="padding:4px 8px;font-size:10px;">Sync Logic Now</button>
+    </div>
   </div>
 
   <!-- Site activation card -->
@@ -1528,6 +1637,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentSiteLabel = document.getElementById('currentSiteLabel');
   const toggleSiteBtn = document.getElementById('toggleSiteBtn');
   const articleCountText = document.getElementById('articleCountText');
+  const autoSyncBadgeText = document.getElementById('autoSyncBadgeText');
+  const syncNowBtn = document.getElementById('syncNowBtn');
 
   let activeHost = '';
 
@@ -1571,6 +1682,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  if (syncNowBtn) {
+    syncNowBtn.addEventListener('click', () => {
+      syncNowBtn.disabled = true;
+      syncNowBtn.textContent = 'Syncing...';
+      chrome.runtime.sendMessage({ type: 'STOCKSCAN_FORCE_AUTOSYNC_NOW' }, (res) => {
+        syncNowBtn.disabled = false;
+        syncNowBtn.textContent = 'Sync Logic Now';
+        if (res && res.ok) {
+          autoSyncBadgeText.textContent = \`✅ Synced \${res.rowsCount || 0} rows just now!\`;
+        } else {
+          autoSyncBadgeText.textContent = '⚠️ ' + ((res && res.message) || 'Open Logic ERP tab');
+        }
+      });
+    });
+  }
+
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs && tabs[0] && tabs[0].url) {
       try {
@@ -1581,9 +1708,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    chrome.storage.local.get(['deductHistory', 'allowedHosts', 'blockedHosts'], (res) => {
+    chrome.storage.local.get(['deductHistory', 'allowedHosts', 'blockedHosts', 'savedLogicCreds', 'lastAutoSyncTime', 'lastAutoSyncRows'], (res) => {
       if (res.deductHistory) {
         renderHistory(res.deductHistory);
+      }
+      if (autoSyncBadgeText) {
+        if (res.savedLogicCreds && res.savedLogicCreds.autoSyncEnabled) {
+          const tStr = res.lastAutoSyncTime ? \` · Last: \${res.lastAutoSyncTime}\` : '';
+          autoSyncBadgeText.textContent = \`🔄 24/7 Auto-Sync ON (\${res.savedLogicCreds.webUser})\${tStr}\`;
+        } else {
+          autoSyncBadgeText.textContent = 'Connect once on elooks.in/#/dashboard for 24/7 Auto-Sync';
+        }
       }
       const allowedHosts = Array.isArray(res.allowedHosts) ? res.allowedHosts : [];
       const blockedHosts = Array.isArray(res.blockedHosts) ? res.blockedHosts : [];
