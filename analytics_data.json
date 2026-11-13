@@ -1,6 +1,14 @@
 {
-  "totalVisits": 125,
+  "totalVisits": 126,
   "visitors": [
+    {
+      "visitorId": "USR-4GEO5E",
+      "device": "Windows PC · Chrome",
+      "firstSeen": "12 Nov, 11:51 pm",
+      "lastSeen": "12 Nov, 11:51 pm",
+      "lastSeenTs": 1794507706255,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-XTZ51N",
       "device": "Linux · Chrome",
@@ -729,7 +737,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794534868235,
+  "updatedAt": 1794507706255,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
