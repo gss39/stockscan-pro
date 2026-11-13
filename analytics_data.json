@@ -502,7 +502,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:12 am",
       "lastSeen": "13 Nov, 02:01 pm",
-      "lastSeenTs": 1794558703386,
+      "lastSeenTs": 1794558706872,
       "visitsCount": 5
     },
     {
@@ -573,6 +573,15 @@
       "totalStock": 8
     },
     {
+      "articleCode": "RSO3501B BLK",
+      "name": "RSO3501B BLK",
+      "barcode": "8909102136872",
+      "count": 3,
+      "lastSearchedAt": "13 Nov, 02:01 pm",
+      "lastSearchedTs": 1794558706872,
+      "totalStock": 1
+    },
+    {
       "articleCode": "RMW0309 GRY",
       "name": "RMW0309 GRY",
       "barcode": "8909102605521",
@@ -580,15 +589,6 @@
       "lastSearchedAt": "08 Nov, 06:54 pm",
       "lastSearchedTs": 1794144264946,
       "totalStock": 8
-    },
-    {
-      "articleCode": "RSO3501B BLK",
-      "name": "RSO3501B BLK",
-      "barcode": "8909102136872",
-      "count": 2,
-      "lastSearchedAt": "09 Nov, 08:33 pm",
-      "lastSearchedTs": 1794236615452,
-      "totalStock": 1
     },
     {
       "articleCode": "RSO4537 WGR",
@@ -755,7 +755,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794558703386,
+  "updatedAt": 1794558706872,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
