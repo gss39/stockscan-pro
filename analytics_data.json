@@ -454,7 +454,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "13 Nov, 01:33 pm",
-      "lastSeenTs": 1794556992432,
+      "lastSeenTs": 1794556999037,
       "visitsCount": 16
     },
     {
@@ -706,6 +706,15 @@
       "lastSearchedAt": "13 Nov, 01:32 pm",
       "lastSearchedTs": 1794556921254,
       "totalStock": 3
+    },
+    {
+      "articleCode": "RSO4521A BLK",
+      "name": "RSO4521A BLK",
+      "barcode": "8909102499274",
+      "count": 1,
+      "lastSearchedAt": "13 Nov, 01:33 pm",
+      "lastSearchedTs": 1794556999037,
+      "totalStock": 6
     }
   ],
   "issues": [
@@ -746,7 +755,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794556992432,
+  "updatedAt": 1794556999037,
   "soldDeductions": [
     {
       "id": "deduct-1794407351789-live-test",
