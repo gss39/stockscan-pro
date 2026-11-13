@@ -2,6 +2,14 @@
   "totalVisits": 145,
   "visitors": [
     {
+      "visitorId": "USR-Z45DWI",
+      "device": "Linux · Chrome",
+      "firstSeen": "13 Nov, 09:11 pm",
+      "lastSeen": "13 Nov, 09:11 pm",
+      "lastSeenTs": 1794604274855,
+      "visitsCount": 1
+    },
+    {
       "visitorId": "USR-IY2KB4",
       "device": "Linux · Chrome",
       "firstSeen": "13 Nov, 02:52 pm",
@@ -163,11 +171,11 @@
     },
     {
       "visitorId": "USR-B9YY16",
-      "device": "Android Phone · Chrome",
+      "device": "Device · Chrome",
       "firstSeen": "08 Nov, 09:43 pm",
-      "lastSeen": "12 Nov, 04:00 pm",
-      "lastSeenTs": 1794528000050,
-      "visitsCount": 2
+      "lastSeen": "08 Nov, 09:43 pm",
+      "lastSeenTs": 1794203001534,
+      "visitsCount": 1
     },
     {
       "visitorId": "USR-HQC10N",
@@ -817,7 +825,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794528000050,
+  "updatedAt": 1794604274855,
   "soldDeductions": [
     {
       "id": "deduct-1794581709021-uq7m",
