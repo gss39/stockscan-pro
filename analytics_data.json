@@ -1,5 +1,5 @@
 {
-  "totalVisits": 160,
+  "totalVisits": 161,
   "visitors": [
     {
       "visitorId": "USR-XI7A5B",
@@ -590,8 +590,8 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:12 am",
       "lastSeen": "14 Nov, 11:52 pm",
-      "lastSeenTs": 1794680520432,
-      "visitsCount": 6
+      "lastSeenTs": 1794680525404,
+      "visitsCount": 7
     },
     {
       "visitorId": "USR-70BIIS",
@@ -891,7 +891,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794680520432,
+  "updatedAt": 1794680525404,
   "soldDeductions": [
     {
       "id": "deduct-1794664808225-czxp",
