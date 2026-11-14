@@ -874,8 +874,56 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663694557,
+  "updatedAt": 1794663724432,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663724432-n3no",
+      "articleCode": "RDM1084A MEDB",
+      "itemName": "RDM1084A MEDB",
+      "size": "34",
+      "barcode": "8909102133932",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: PRINT AND SAVE",
+      "timestamp": "14 Nov, 07:12 pm",
+      "timestampMs": 1794663724432
+    },
+    {
+      "id": "deduct-1794663724432-w2py",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "34",
+      "barcode": "8909102208197",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: PRINT AND SAVE",
+      "timestamp": "14 Nov, 07:12 pm",
+      "timestampMs": 1794663724432
+    },
+    {
+      "id": "deduct-1794663724432-nhkw",
+      "articleCode": "RFS6534 BLUE",
+      "itemName": "RFS6534 BLUE",
+      "size": "M/40",
+      "barcode": "8909102605842",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: PRINT AND SAVE",
+      "timestamp": "14 Nov, 07:12 pm",
+      "timestampMs": 1794663724432
+    },
+    {
+      "id": "deduct-1794663724432-lrbj",
+      "articleCode": "RFS6436 TAN",
+      "itemName": "RFS6436 TAN",
+      "size": "M/40",
+      "barcode": "8909102615476",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: PRINT AND SAVE",
+      "timestamp": "14 Nov, 07:12 pm",
+      "timestampMs": 1794663724432
+    },
     {
       "id": "deduct-1794663694557-qlb3",
       "articleCode": "RDM1084A MEDB",
