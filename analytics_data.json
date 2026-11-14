@@ -518,7 +518,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "14 Nov, 06:39 pm",
-      "lastSeenTs": 1794661787901,
+      "lastSeenTs": 1794661790776,
       "visitsCount": 23
     },
     {
@@ -657,10 +657,10 @@
     {
       "articleCode": "RMW0309 GRY",
       "name": "RMW0309 GRY",
-      "barcode": "8909102605521",
-      "count": 2,
-      "lastSearchedAt": "08 Nov, 06:54 pm",
-      "lastSearchedTs": 1794144264946,
+      "barcode": "8909102605514",
+      "count": 3,
+      "lastSearchedAt": "14 Nov, 06:39 pm",
+      "lastSearchedTs": 1794661790776,
       "totalStock": 8
     },
     {
@@ -858,7 +858,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794661787901,
+  "updatedAt": 1794661790776,
   "soldDeductions": [
     {
       "id": "deduct-1794581709021-uq7m",
