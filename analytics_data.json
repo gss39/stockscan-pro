@@ -858,8 +858,104 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663343859,
+  "updatedAt": 1794663356819,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663356819-z8mx",
+      "articleCode": "RFS6251 LGR",
+      "itemName": "RFS6251 LGR",
+      "size": "XL/44",
+      "barcode": "8909102359042",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-lu1s",
+      "articleCode": "RDM1034A BLUE",
+      "itemName": "RDM1034A BLUE",
+      "size": "34",
+      "barcode": "8909102208159",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-g20o",
+      "articleCode": "RDM0167A GRY",
+      "itemName": "RDM0167A GRY",
+      "size": "32",
+      "barcode": "8909102208098",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-dz74",
+      "articleCode": "RFS6378 WHT",
+      "itemName": "RFS6378 WHT",
+      "size": "L/42",
+      "barcode": "8909102376537",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-7h5u",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "30",
+      "barcode": "8909102208265",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-bevu",
+      "articleCode": "RSO4764 DGR",
+      "itemName": "RSO4764 DGR",
+      "size": "09/43",
+      "barcode": "8909102526284",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-aiyg",
+      "articleCode": "RFS6251 LGR",
+      "itemName": "RFS6251 LGR",
+      "size": "M/40",
+      "barcode": "8909102359035",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
+    {
+      "id": "deduct-1794663356819-caaj",
+      "articleCode": "RDM1034A BLUE",
+      "itemName": "RDM1034A BLUE",
+      "size": "34",
+      "barcode": "8909102208159",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:05 pm",
+      "timestampMs": 1794663356819
+    },
     {
       "id": "deduct-1794663343859-6hcq",
       "articleCode": "RDM1034A BLUE",
