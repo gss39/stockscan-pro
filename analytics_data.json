@@ -858,8 +858,56 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663068986,
+  "updatedAt": 1794663084336,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663084336-41sf",
+      "articleCode": "RFS6378 WHT",
+      "itemName": "RFS6378 WHT",
+      "size": "S/38",
+      "barcode": "8909102376551",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:01 pm",
+      "timestampMs": 1794663084336
+    },
+    {
+      "id": "deduct-1794663084336-snfl",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "30",
+      "barcode": "8909102208265",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:01 pm",
+      "timestampMs": 1794663084336
+    },
+    {
+      "id": "deduct-1794663084336-0o0l",
+      "articleCode": "RSO4764 DGR",
+      "itemName": "RSO4764 DGR",
+      "size": "09/43",
+      "barcode": "8909102526284",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:01 pm",
+      "timestampMs": 1794663084336
+    },
+    {
+      "id": "deduct-1794663084336-c9mu",
+      "articleCode": "RFS6378 WHT",
+      "itemName": "RFS6378 WHT",
+      "size": "L/42",
+      "barcode": "8909102376537",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:01 pm",
+      "timestampMs": 1794663084336
+    },
     {
       "id": "deduct-1794663068986-avyg",
       "articleCode": "RDM1014A T BLUE",
