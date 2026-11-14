@@ -1,6 +1,14 @@
 {
-  "totalVisits": 154,
+  "totalVisits": 155,
   "visitors": [
+    {
+      "visitorId": "USR-C4XE70",
+      "device": "Linux · Chrome",
+      "firstSeen": "14 Nov, 01:41 pm",
+      "lastSeen": "14 Nov, 01:41 pm",
+      "lastSeenTs": 1794663693582,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-OTFLQU",
       "device": "Linux · Chrome",
@@ -866,7 +874,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663669088,
+  "updatedAt": 1794663693582,
   "soldDeductions": [
     {
       "id": "deduct-1794663669088-zjyq",
