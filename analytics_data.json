@@ -874,8 +874,32 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663904248,
+  "updatedAt": 1794664741092,
   "soldDeductions": [
+    {
+      "id": "deduct-1794664741092-s7qw",
+      "articleCode": "RSL1428 BROW",
+      "itemName": "RSL1428 BROW",
+      "size": "07/41",
+      "barcode": "8909102296811",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:29 pm",
+      "timestampMs": 1794664741092
+    },
+    {
+      "id": "deduct-1794664741092-qpr0",
+      "articleCode": "RSL1428 BROW",
+      "itemName": "RSL1428 BROW",
+      "size": "07/41",
+      "barcode": "8909102296811",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:29 pm",
+      "timestampMs": 1794664741092
+    },
     {
       "id": "deduct-1794663904248-qc3u",
       "articleCode": "RMW0309 GRY",
