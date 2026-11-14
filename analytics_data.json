@@ -858,8 +858,68 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794662944892,
+  "updatedAt": 1794662957948,
   "soldDeductions": [
+    {
+      "id": "deduct-1794662957948-cbcs",
+      "articleCode": "RHS4469 GRN",
+      "itemName": "RHS4469 GRN",
+      "size": "L/42",
+      "barcode": "8909102375578",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 06:59 pm",
+      "timestampMs": 1794662957948
+    },
+    {
+      "id": "deduct-1794662957948-b6w1",
+      "articleCode": "RHS4474 BLUE",
+      "itemName": "RHS4474 BLUE",
+      "size": "XL/44",
+      "barcode": "8909102442539",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 06:59 pm",
+      "timestampMs": 1794662957948
+    },
+    {
+      "id": "deduct-1794662957948-xe5r",
+      "articleCode": "RDM1177A DIG",
+      "itemName": "RDM1177A DIG",
+      "size": "38",
+      "barcode": "8909102599189",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 06:59 pm",
+      "timestampMs": 1794662957948
+    },
+    {
+      "id": "deduct-1794662957948-hr1f",
+      "articleCode": "RDM1131 BLUE",
+      "itemName": "RDM1131 BLUE",
+      "size": "38",
+      "barcode": "8909102118816",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 06:59 pm",
+      "timestampMs": 1794662957948
+    },
+    {
+      "id": "deduct-1794662957948-oapx",
+      "articleCode": "RHS4469 GRN",
+      "itemName": "RHS4469 GRN",
+      "size": "L/42",
+      "barcode": "8909102375578",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 06:59 pm",
+      "timestampMs": 1794662957948
+    },
     {
       "id": "deduct-1794662944892-odib",
       "articleCode": "RHS4474 BLUE",
