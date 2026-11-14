@@ -858,8 +858,80 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663356819,
+  "updatedAt": 1794663362815,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663362815-zm2m",
+      "articleCode": "RFS6251 LGR",
+      "itemName": "RFS6251 LGR",
+      "size": "XL/44",
+      "barcode": "8909102359042",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:06 pm",
+      "timestampMs": 1794663362815
+    },
+    {
+      "id": "deduct-1794663362815-by37",
+      "articleCode": "RDM1034A BLUE",
+      "itemName": "RDM1034A BLUE",
+      "size": "34",
+      "barcode": "8909102208159",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:06 pm",
+      "timestampMs": 1794663362815
+    },
+    {
+      "id": "deduct-1794663362815-snrz",
+      "articleCode": "RDM0167A GRY",
+      "itemName": "RDM0167A GRY",
+      "size": "32",
+      "barcode": "8909102208098",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:06 pm",
+      "timestampMs": 1794663362815
+    },
+    {
+      "id": "deduct-1794663362815-td4i",
+      "articleCode": "RFS6378 WHT",
+      "itemName": "RFS6378 WHT",
+      "size": "L/42",
+      "barcode": "8909102376537",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:06 pm",
+      "timestampMs": 1794663362815
+    },
+    {
+      "id": "deduct-1794663362815-1jn0",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "30",
+      "barcode": "8909102208265",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:06 pm",
+      "timestampMs": 1794663362815
+    },
+    {
+      "id": "deduct-1794663362815-48fg",
+      "articleCode": "RSO4764 DGR",
+      "itemName": "RSO4764 DGR",
+      "size": "09/43",
+      "barcode": "8909102526284",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:06 pm",
+      "timestampMs": 1794663362815
+    },
     {
       "id": "deduct-1794663356819-z8mx",
       "articleCode": "RFS6251 LGR",
