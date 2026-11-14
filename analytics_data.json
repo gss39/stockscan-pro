@@ -1,6 +1,14 @@
 {
-  "totalVisits": 154,
+  "totalVisits": 155,
   "visitors": [
+    {
+      "visitorId": "USR-C4XE70",
+      "device": "Linux · Chrome",
+      "firstSeen": "14 Nov, 01:41 pm",
+      "lastSeen": "14 Nov, 01:41 pm",
+      "lastSeenTs": 1794663693582,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-OTFLQU",
       "device": "Linux · Chrome",
@@ -866,8 +874,56 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663669088,
+  "updatedAt": 1794663694557,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663694557-qlb3",
+      "articleCode": "RDM1084A MEDB",
+      "itemName": "RDM1084A MEDB",
+      "size": "34",
+      "barcode": "8909102133932",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "14 Nov, 07:11 pm",
+      "timestampMs": 1794663694557
+    },
+    {
+      "id": "deduct-1794663694557-rz5n",
+      "articleCode": "RDM1014A T BLUE",
+      "itemName": "RDM1014A T BLUE",
+      "size": "34",
+      "barcode": "8909102208197",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "14 Nov, 07:11 pm",
+      "timestampMs": 1794663694557
+    },
+    {
+      "id": "deduct-1794663694557-hams",
+      "articleCode": "RFS6534 BLUE",
+      "itemName": "RFS6534 BLUE",
+      "size": "M/40",
+      "barcode": "8909102605842",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "14 Nov, 07:11 pm",
+      "timestampMs": 1794663694557
+    },
+    {
+      "id": "deduct-1794663694557-hm5f",
+      "articleCode": "RFS6436 TAN",
+      "itemName": "RFS6436 TAN",
+      "size": "M/40",
+      "barcode": "8909102615476",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Button: SAVE/OK",
+      "timestamp": "14 Nov, 07:11 pm",
+      "timestampMs": 1794663694557
+    },
     {
       "id": "deduct-1794663669088-zjyq",
       "articleCode": "RDM1084A MEDB",
