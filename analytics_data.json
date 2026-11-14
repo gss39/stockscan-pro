@@ -858,8 +858,32 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663447435,
+  "updatedAt": 1794663544012,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663544012-6ntv",
+      "articleCode": "RFS6532 PINK",
+      "itemName": "RFS6532 PINK",
+      "size": "L/42",
+      "barcode": "8909102606030",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:09 pm",
+      "timestampMs": 1794663544012
+    },
+    {
+      "id": "deduct-1794663544012-n3f7",
+      "articleCode": "RFS6532 PINK",
+      "itemName": "RFS6532 PINK",
+      "size": "L/42",
+      "barcode": "8909102606030",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:09 pm",
+      "timestampMs": 1794663544012
+    },
     {
       "id": "deduct-1794663447435-bf7u",
       "articleCode": "RFS6251 LGR",
