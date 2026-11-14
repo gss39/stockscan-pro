@@ -874,8 +874,20 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663788505,
+  "updatedAt": 1794663791626,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663791626-azdw",
+      "articleCode": "RMW0309 GRY",
+      "itemName": "RMW0309 GRY",
+      "size": "06/40",
+      "barcode": "8909102605514",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:13 pm",
+      "timestampMs": 1794663791626
+    },
     {
       "id": "deduct-1794663788505-lro0",
       "articleCode": "RMW0309 GRY",
