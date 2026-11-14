@@ -518,7 +518,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "14 Nov, 06:39 pm",
-      "lastSeenTs": 1794661784157,
+      "lastSeenTs": 1794661787901,
       "visitsCount": 23
     },
     {
@@ -797,6 +797,15 @@
       "lastSearchedAt": "13 Nov, 04:39 pm",
       "lastSearchedTs": 1794568172954,
       "totalStock": 5
+    },
+    {
+      "articleCode": "RHP2291 CRM",
+      "name": "RHP2291 CRM",
+      "barcode": "8909102383436",
+      "count": 1,
+      "lastSearchedAt": "14 Nov, 06:39 pm",
+      "lastSearchedTs": 1794661787901,
+      "totalStock": 5
     }
   ],
   "issues": [
@@ -849,7 +858,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794661784157,
+  "updatedAt": 1794661787901,
   "soldDeductions": [
     {
       "id": "deduct-1794581709021-uq7m",
