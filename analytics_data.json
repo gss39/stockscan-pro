@@ -542,7 +542,7 @@
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
       "lastSeen": "14 Nov, 07:39 pm",
-      "lastSeenTs": 1794665374666,
+      "lastSeenTs": 1794665388779,
       "visitsCount": 26
     },
     {
@@ -830,6 +830,15 @@
       "lastSearchedAt": "14 Nov, 06:39 pm",
       "lastSearchedTs": 1794661787901,
       "totalStock": 5
+    },
+    {
+      "articleCode": "RSO5091 BGR",
+      "name": "RSO5091 BGR",
+      "barcode": "8909102624591",
+      "count": 1,
+      "lastSearchedAt": "14 Nov, 07:39 pm",
+      "lastSearchedTs": 1794665388779,
+      "totalStock": 10
     }
   ],
   "issues": [
@@ -882,7 +891,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794665374666,
+  "updatedAt": 1794665388779,
   "soldDeductions": [
     {
       "id": "deduct-1794664808225-czxp",
