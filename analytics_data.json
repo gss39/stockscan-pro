@@ -1,6 +1,14 @@
 {
-  "totalVisits": 153,
+  "totalVisits": 154,
   "visitors": [
+    {
+      "visitorId": "USR-OTFLQU",
+      "device": "Linux · Chrome",
+      "firstSeen": "14 Nov, 01:41 pm",
+      "lastSeen": "14 Nov, 01:41 pm",
+      "lastSeenTs": 1794663673539,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-94AFF6",
       "device": "iPhone / iOS · Safari",
@@ -858,7 +866,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663655069,
+  "updatedAt": 1794663673539,
   "soldDeductions": [
     {
       "id": "deduct-1794663655069-vikl",
