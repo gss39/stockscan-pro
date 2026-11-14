@@ -858,8 +858,32 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663599966,
+  "updatedAt": 1794663626890,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663626890-580d",
+      "articleCode": "RFS6436 TAN",
+      "itemName": "RFS6436 TAN",
+      "size": "L/42",
+      "barcode": "8909102615469",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:10 pm",
+      "timestampMs": 1794663626890
+    },
+    {
+      "id": "deduct-1794663626890-9fq0",
+      "articleCode": "RFS6436 TAN",
+      "itemName": "RFS6436 TAN",
+      "size": "L/42",
+      "barcode": "8909102615469",
+      "qtyDeducted": 1,
+      "remainingQty": 1,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:10 pm",
+      "timestampMs": 1794663626890
+    },
     {
       "id": "deduct-1794663599966-5y3h",
       "articleCode": "RMW0309 GRY",
