@@ -1,6 +1,22 @@
 {
-  "totalVisits": 148,
+  "totalVisits": 151,
   "visitors": [
+    {
+      "visitorId": "USR-94AFF6",
+      "device": "iPhone / iOS · Safari",
+      "firstSeen": "14 Nov, 11:41 am",
+      "lastSeen": "14 Nov, 11:41 am",
+      "lastSeenTs": 1794656486593,
+      "visitsCount": 1
+    },
+    {
+      "visitorId": "USR-OMMCEX",
+      "device": "Linux · Chrome",
+      "firstSeen": "14 Nov, 04:37 am",
+      "lastSeen": "14 Nov, 04:37 am",
+      "lastSeenTs": 1794631057900,
+      "visitsCount": 1
+    },
     {
       "visitorId": "USR-ICBX64",
       "device": "Device · Browser",
@@ -557,9 +573,9 @@
       "visitorId": "USR-70BIIS",
       "device": "Windows PC · Chrome",
       "firstSeen": "08 Nov, 10:11 am",
-      "lastSeen": "14 Nov, 10:05 am",
-      "lastSeenTs": 1794630928271,
-      "visitsCount": 3
+      "lastSeen": "14 Nov, 10:09 am",
+      "lastSeenTs": 1794631189125,
+      "visitsCount": 4
     },
     {
       "visitorId": "USR-LHUI1G",
@@ -833,7 +849,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794630928271,
+  "updatedAt": 1794656486593,
   "soldDeductions": [
     {
       "id": "deduct-1794581709021-uq7m",
