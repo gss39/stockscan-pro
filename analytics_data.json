@@ -874,8 +874,32 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663868484,
+  "updatedAt": 1794663872166,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663872166-06zs",
+      "articleCode": "RMW0309 GRY",
+      "itemName": "RMW0309 GRY",
+      "size": "08/42",
+      "barcode": "8909102605538",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:14 pm",
+      "timestampMs": 1794663872166
+    },
+    {
+      "id": "deduct-1794663872166-b9hz",
+      "articleCode": "RMW0309 GRY",
+      "itemName": "RMW0309 GRY",
+      "size": "06/40",
+      "barcode": "8909102605514",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:14 pm",
+      "timestampMs": 1794663872166
+    },
     {
       "id": "deduct-1794663868484-9oy4",
       "articleCode": "RMW0309 GRY",
