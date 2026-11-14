@@ -882,8 +882,44 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794664759328,
+  "updatedAt": 1794664760038,
   "soldDeductions": [
+    {
+      "id": "deduct-1794664760038-37q2",
+      "articleCode": "RFS6527 OWH",
+      "itemName": "RFS6527 OWH",
+      "size": "L/42",
+      "barcode": "8909102605798",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:29 pm",
+      "timestampMs": 1794664760038
+    },
+    {
+      "id": "deduct-1794664760038-ijrv",
+      "articleCode": "RSL1428 BROW",
+      "itemName": "RSL1428 BROW",
+      "size": "07/41",
+      "barcode": "8909102296811",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:29 pm",
+      "timestampMs": 1794664760038
+    },
+    {
+      "id": "deduct-1794664760038-vwl6",
+      "articleCode": "RFS6527 OWH",
+      "itemName": "RFS6527 OWH",
+      "size": "L/42",
+      "barcode": "8909102605798",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:29 pm",
+      "timestampMs": 1794664760038
+    },
     {
       "id": "deduct-1794664741092-s7qw",
       "articleCode": "RSL1428 BROW",
