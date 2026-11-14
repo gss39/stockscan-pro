@@ -858,8 +858,44 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794663571356,
+  "updatedAt": 1794663576392,
   "soldDeductions": [
+    {
+      "id": "deduct-1794663576392-0sly",
+      "articleCode": "RMW0309 GRY",
+      "itemName": "RMW0309 GRY",
+      "size": "09/43",
+      "barcode": "8909102605545",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:09 pm",
+      "timestampMs": 1794663576392
+    },
+    {
+      "id": "deduct-1794663576392-076d",
+      "articleCode": "RFS6532 PINK",
+      "itemName": "RFS6532 PINK",
+      "size": "M/40",
+      "barcode": "8909102606047",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:09 pm",
+      "timestampMs": 1794663576392
+    },
+    {
+      "id": "deduct-1794663576392-i5zo",
+      "articleCode": "RMW0309 GRY",
+      "itemName": "RMW0309 GRY",
+      "size": "06/40",
+      "barcode": "8909102605514",
+      "qtyDeducted": 1,
+      "remainingQty": 0,
+      "source": "Shortcut F2",
+      "timestamp": "14 Nov, 07:09 pm",
+      "timestampMs": 1794663576392
+    },
     {
       "id": "deduct-1794663571356-dwf6",
       "articleCode": "RMW0309 GRY",
