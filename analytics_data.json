@@ -1,5 +1,5 @@
 {
-  "totalVisits": 156,
+  "totalVisits": 157,
   "visitors": [
     {
       "visitorId": "USR-XI7A5B",
@@ -541,9 +541,9 @@
       "visitorId": "USR-STEJ6C",
       "device": "Android Phone · Chrome",
       "firstSeen": "08 Nov, 10:15 am",
-      "lastSeen": "14 Nov, 06:39 pm",
-      "lastSeenTs": 1794661790776,
-      "visitsCount": 23
+      "lastSeen": "14 Nov, 07:37 pm",
+      "lastSeenTs": 1794665255944,
+      "visitsCount": 24
     },
     {
       "visitorId": "USR-35N973",
@@ -882,7 +882,7 @@
       "occurrences": 1
     }
   ],
-  "updatedAt": 1794664808225,
+  "updatedAt": 1794665255944,
   "soldDeductions": [
     {
       "id": "deduct-1794664808225-czxp",
